@@ -12,7 +12,7 @@ let one = Object.assign({}, ...Object.entries(jsonData.unprefixed).map(([key, va
     mnemonic: value.mnemonic,
     bytes: value.bytes,
     cycles: value.cycles[0],
-    operands: value.operands.map(op => op.name)
+    operands: value.operands.map(o => { return { name: o.name, immediate: o.immediate } })
   }}
 }))
 
@@ -25,7 +25,7 @@ let two = Object.assign({}, ...Object.entries(jsonData.cbprefixed).map(([key, va
     mnemonic: value.mnemonic,
     bytes: value.bytes,
     cycles: value.cycles[0],
-    operands: value.operands.map(op => op.name)
+    operands: value.operands.map(o => { return { name: o.name, immediate: o.immediate } })
   }}
 }))
 

@@ -7,6 +7,7 @@
 
 
 - **Optable** - https://gbdev.io/gb-opcodes/optables/
+- **Better Optable** - https://meganesu.github.io/generate-gb-opcodes/
 - **Opcodes Reference** - https://rgbds.gbdev.io/docs/v0.6.1/gbz80.7
 - **Decoding opcodes** - https://gb-archive.github.io/salvage/decoding_gbz80_opcodes/Decoding%20Gamboy%20Z80%20Opcodes.html
 - **Memory Map** - http://gameboy.mongenel.com/dmg/asmmemmap.html

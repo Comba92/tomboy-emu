@@ -5,11 +5,10 @@ mod tests {
   #[test]
   fn it_works() {
     let mut cpu = CPU::new();
-    cpu.reg_a = 0x10;
-    cpu.load(vec!(0xea, 0x00, 0x20));
-    cpu.run();
+    cpu.registers.set(1, 0x20);
 
-    println!("{:#x?}", &cpu.ram[0 .. 0x25]);
-    assert_eq!(cpu.ram[0x20], 0x10);
+    cpu.load(vec!(0x03));
+    cpu.run();
+    assert_eq!(cpu.registers.get_16(0), 0x21);
   }
 }
