@@ -29,5 +29,5 @@ let two = Object.assign({}, ...Object.entries(jsonData.cbprefixed).map(([key, va
   }}
 }))
 
-fs.writeFileSync('optable.json', JSON.stringify({ unprefixed: one, cbprefixed: two}, null, 2));
+fs.writeFileSync('../src/cpu/optable.json', JSON.stringify({ unprefixed: one, cbprefixed: two}, null, 2));
 

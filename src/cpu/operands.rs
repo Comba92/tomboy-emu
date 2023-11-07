@@ -1,10 +1,37 @@
 use OperandsType::*;
-use crate::cpu::CPU;
-use crate::cpu::optable::{OperandsType, RegisterOperand};
-
+use super::CPU;
 use super::Flags;
-use super::optable::{ConditionOperand, ConstantOperand};
 
+#[derive(Debug)]
+pub enum OperandsType {
+  Register(RegisterOperand),
+  Condition(ConditionOperand),
+  Constant(ConstantOperand)
+}
+
+#[derive(Debug)]
+pub enum RegisterOperand {
+  A, B, C, D, E, F, H, L, AF, BC, DE, HL
+}
+
+#[derive(Debug)]
+pub enum ConditionOperand {
+  Z, NZ, C, NC
+}
+
+#[derive(Debug)]
+pub enum ConstantOperand {
+  Data8,
+  Data16,
+  DataSigned8,
+  Address,
+  AddressIO,
+  Bit,
+  Vector
+}
+
+
+// TODO: get should return an u8 or a u16, and set should set an u8 or an u16, figure out how
 impl CPU {
   pub(super) fn get_operand(&self, operand: &OperandsType) -> u16 {
     match operand {
@@ -31,10 +58,10 @@ impl CPU {
       },
 
       Constant(c) => match c {
-        ConstantOperand::Data8       => todo!(),
-        ConstantOperand::Data16      => todo!(),
+        ConstantOperand::Data8       => self.mem_read(self.pc) as u16,
+        ConstantOperand::Data16      => self.mem_read16(self.pc),
         ConstantOperand::AddressIO   => todo!(),
-        ConstantOperand::Address     => todo!(),
+        ConstantOperand::Address     => self.mem_read16(self.pc),
         ConstantOperand::DataSigned8 => todo!(),
         ConstantOperand::Bit         => todo!(),
         ConstantOperand::Vector      => todo!(),
@@ -62,7 +89,10 @@ impl CPU {
 
       Constant(c) => match c {
         ConstantOperand::AddressIO   => todo!(),
-        ConstantOperand::Address     => todo!(),
+        ConstantOperand::Address     => {
+          let addr = self.mem_read16(self.pc);
+          self.mem_write(addr, data as u8);
+        },
 
         _ => panic!("{:#?} operand setting not implemented.", operand)
       },

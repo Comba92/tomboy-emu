@@ -72,6 +72,27 @@ impl CPU {
   pub fn set_reg_de(&mut self, data: u16) { [self.reg_d, self.reg_e] = data.to_be_bytes(); }
   pub fn set_reg_hl(&mut self, data: u16) { [self.reg_h, self.reg_l] = data.to_be_bytes(); }
 
+  pub fn mem_read(&self, addr: u16) -> u8 {
+    self.ram[addr as usize]
+  }
+  pub fn mem_write(&mut self, addr: u16, data: u8) {
+    self.ram[addr as usize] = data;
+  }
+  
+  pub fn mem_read16(&self, addr: u16) -> u16 {
+    let high = self.mem_read(addr);
+    let low = self.mem_read(addr + 1);
+    println!("[MEM_READ16]: {:x}", u16::from_be_bytes([high, low]));
+    u16::from_be_bytes([high, low]) 
+  }
+
+  pub fn mem_write16(&mut self, addr: u16, data: u16) {
+    let [high, low] = data.to_be_bytes();
+    println!("[MEM_WRITE16]: {:x}", u16::from_be_bytes([high, low]));
+    self.mem_write(addr, high);
+    self.mem_write(addr + 1, low);
+  }
+
 
   pub fn load(&mut self, program: Vec<u8>) {
     self.ram[0 .. program.len()].copy_from_slice(&program);
@@ -87,7 +108,7 @@ impl CPU {
 
       match code {
         0x00 => return,
-        0x02 => self.ld(&opcode.operands),
+        0x02 | 0xea => self.ld(&opcode.operands),
         _ => panic!("Opcode {:#?} not implemented.", opcode)
       }
 
