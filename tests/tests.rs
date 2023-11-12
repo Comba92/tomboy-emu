@@ -7,8 +7,13 @@ mod tests {
     let mut cpu = CPU::new();
     cpu.registers.set(1, 0x20);
 
-    cpu.load(vec!(0x03));
-    cpu.run();
+    cpu.load_and_run(vec!(0x03));
     assert_eq!(cpu.registers.get_16(0), 0x21);
+  }
+
+  #[test]
+  fn nop() {
+    let mut cpu = CPU::new();
+    cpu.load_and_run(vec!(0x00));
   }
 }
