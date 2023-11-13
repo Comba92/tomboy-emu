@@ -40,6 +40,11 @@ impl CPU {
     todo!("Don't know if it is little or big endian")
   }
 
+  pub fn stack_push(&mut self, data: u8) {}
+  pub fn stack_pop(&mut self) -> u8 {}
+  pub fn stack_push_16(&mut self, data: u16) {}
+  pub fn stack_pop_16(&mut self) -> u16 {}
+
   pub fn load_and_run(&mut self, program: Vec<u8>) {
     self.load(program);
     self.run();

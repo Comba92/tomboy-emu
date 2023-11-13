@@ -34,6 +34,11 @@ impl CPU {
     self.mem_write_16(addr, self.sp);
   }
 
+  pub(super) fn load_hl_to_sp(&mut self) {
+    let hl = self.registers.get_16(Register16::HL as u8);
+    
+  }
+
   pub(super) fn load_immediate_to_r(&mut self, reg: u8) {
     let data = self.mem_read(self.pc);
     self.registers.set(reg, data);
@@ -51,7 +56,10 @@ impl CPU {
     self.registers.set(Register8::A as u8, data);
 
     // if it is hl
+
+    // ldi
     if reg == 2 { self.registers.set_16(Register16::HL as u8, addr.wrapping_add(1)); }
+    // ldd
     if reg == 3 { self.registers.set_16(Register16::HL as u8, addr.wrapping_sub(1)); }
   }
 
@@ -61,8 +69,55 @@ impl CPU {
     self.mem_write(addr, data);
 
     // if it is hl
+
+    // ldi
     if reg == 2 { self.registers.set_16(Register16::HL as u8, addr.wrapping_add(1)); }
+    // ldd
     if reg == 3 { self.registers.set_16(Register16::HL as u8, addr.wrapping_sub(1)); }
+  }
+
+  pub(super) fn load_a_to_memory(&mut self) {
+    let a = self.registers.get(Register8::A as u8);
+    let addr = self.pc;
+    self.mem_write(addr, a);
+  }
+
+  pub(super) fn load_memory_to_a(&mut self) {
+    let addr = self.pc;
+    let data = self.mem_read(addr);
+    self.registers.set(Register8::A as u8, data);
+  }
+
+  pub(super) fn load_a_to_relative_c(&mut self) {
+    let a = self.registers.get(Register8::A as u8);
+    let c = self.registers.get(Register8::C as u8);
+    let addr = 0xFF00 + c as u16;
+
+    self.mem_write(addr, a);
+  }
+
+  pub(super) fn load_relative_c_to_a(&mut self) {
+    let c = self.registers.get(Register8::C as u8);
+    let addr = 0xFF00 + c as u16;
+
+    let data = self.mem_read(addr);
+    self.registers.set(Register8::A as u8, data);
+  }
+
+  pub(super) fn load_a_to_relative(&mut self) {
+    let a = self.registers.get(Register8::A as u8);
+    let n = self.mem_read(self.pc);
+    let addr = 0xFF00 + n as u16;
+
+    self.mem_write(addr, a);
+  }
+
+  pub(super) fn load_relative_to_a(&mut self) {
+    let n = self.mem_read(self.pc);
+    let addr = 0xFF00 + n as u16;
+
+    let data = self.mem_read(addr);
+    self.registers.set(Register8::A as u8, data);
   }
 
   pub(super) fn inc_r(&mut self, reg: u8) {
@@ -106,7 +161,7 @@ impl CPU {
   pub(super) fn adc(&mut self, reg: u8) {
     let (a, other) = self.get_alu_op_operands(reg);
 
-    let carry = self.registers.carry() as u8;
+    let carry = self.registers.get_carry() as u8;
     let result = a.wrapping_add(other).wrapping_add(carry);
     self.registers.set(Register8::A as u8, result);
 
@@ -128,7 +183,7 @@ impl CPU {
   pub(super) fn sbc(&mut self, reg: u8) {
     let (a, other) = self.get_alu_op_operands(reg);
 
-    let carry = (self.registers.carry() as u8).wrapping_neg();
+    let carry = (self.registers.get_carry() as u8).wrapping_neg();
     let other = other.wrapping_neg();
     let result = a.wrapping_add(other).wrapping_add(carry);
     self.registers.set(Register8::A as u8, result);
@@ -195,4 +250,86 @@ impl CPU {
     self.registers.update_carry_16(hl, data);
     self.registers.update_hcarry_16(hl, data);
   }
+
+  pub(super) fn rlca(&mut self) {
+    let a = self.registers.get(Register8::A as u8);
+    let carry = a >> 7;
+    let result: u8 = (a << 1) | carry;
+    self.registers.set(Register8::A as u8, result);
+
+    self.registers.set_zero(false);
+    self.registers.set_sub(false);
+    self.registers.set_carry(carry != 0);
+    self.registers.set_hcarry(false);
+  }
+  
+  pub(super) fn rrca(&mut self) {
+    let a = self.registers.get(Register8::A as u8);
+    let carry = a << 7;
+    let result = (a >> 1) | carry;
+    self.registers.set(Register8::A as u8, result);
+
+    self.registers.set_zero(false);
+    self.registers.set_sub(false);
+    self.registers.set_carry(carry != 0);
+    self.registers.set_hcarry(false);
+  }
+
+  pub(super) fn rla(&mut self) {
+    let a = self.registers.get(Register8::A as u8);
+    let carry = self.registers.get_carry() as u8;
+    let bit = a >> 7;
+    let result = (a << 1) | carry;
+    self.registers.set(Register8::A as u8, result);
+
+    self.registers.set_zero(false);
+    self.registers.set_sub(false);
+    self.registers.set_carry(bit != 0);
+    self.registers.set_hcarry(false);
+  }
+
+  pub(super) fn rra(&mut self) {
+    let a = self.registers.get(Register8::A as u8);
+    let carry = self.registers.get_carry() as u8;
+    let bit = a & 1;
+    let result = (a >> 1) | (carry << 7);
+    self.registers.set(Register8::A as u8, result);
+
+    self.registers.set_zero(false);
+    self.registers.set_sub(false);
+    self.registers.set_carry(bit != 0);
+    self.registers.set_hcarry(false);
+  }
+
+  pub(super) fn daa(&mut self) {
+    todo!("implement daa");
+  }
+
+  pub(super) fn scf(&mut self) {
+    self.registers.set_carry(true);
+    self.registers.set_hcarry(false);
+    self.registers.set_sub(false);
+  }
+
+  pub(super) fn cpl(&mut self) {
+    let a = self.registers.get(Register8::A as u8);
+    self.registers.set(Register8::A as u8, !a);
+
+    self.registers.set_sub(true);
+    self.registers.set_hcarry(true);
+  }
+
+  pub(super) fn ccf(&mut self) {
+    let carry = self.registers.get_carry();
+    self.registers.set_carry(!carry);
+
+    self.registers.set_sub(false);
+    self.registers.set_hcarry(false);
+  }
+
+  pub(super) fn jp_immediate(&mut self) {
+    self.pc = self.mem_read_16(self.pc);
+  }
+
+
 }
