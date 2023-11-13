@@ -3,31 +3,43 @@ const fs = require('fs');
 const jsonFile = fs.readFileSync('opcodes.json');
 const jsonData = JSON.parse(jsonFile.toString());
 
-let one = Object.assign({}, ...Object.entries(jsonData.unprefixed).map(([key, value]) => {
-  if ( ["0xDC", "0xD8", "0xDA"].includes(key) ) {
-    value.operands[0].name = "CARRY"
-  }
-  
-  return { [`${key}`]: {
-    mnemonic: value.mnemonic,
-    bytes: value.bytes,
-    cycles: value.cycles[0],
-    operands: value.operands.map(o => { return { name: o.name, immediate: o.immediate } })
-  }}
-}))
+const conds = ["CY", "NC", "Z", "NZ"]
+const bits = ["0", "1" , "2" , "3" , "4" , "5" , "6" , "7"]
+const literals = ["n8", "n16", "a8", "a16", "e8"]
 
-let two = Object.assign({}, ...Object.entries(jsonData.cbprefixed).map(([key, value]) => {
-  if (["0xDC", "0xD8", "0xDA"].includes(key)) {
-    value.operands[0].name = "CARRY"
-  }
+function parse_operand(data, cb) {
+  let type = '';
 
-  return { [`${key}`]: {
-    mnemonic: value.mnemonic,
-    bytes: value.bytes,
-    cycles: value.cycles[0],
-    operands: value.operands.map(o => { return { name: o.name, immediate: o.immediate } })
-  }}
-}))
+  if (data.name[0] == '$') { type = 'Literal(n16)' }
+  else if (conds.includes(data.name)) { type = 'Condition(' + data.name + ')'}
+  else if (bits.includes(data.name)) { type = 'Literal(n8)' }
+  else if (literals.includes(data.name)) { type = 'Literal(' + data.name + ')' }
+  else { type = 'Register(' + data.name + ')'}
 
-fs.writeFileSync('../src/cpu/optable.json', JSON.stringify({ unprefixed: one, cbprefixed: two}, null, 2));
+  return `Operand {kind: ${type}, immediate: ${data.immediate}}`
+}
 
+function parse_obj(data) {
+  return Object.entries(data).map( ([key, value]) => {
+    if (["0xDC", "0xD8", "0xDA"].includes(key)) {
+      value.operands[0].name = "CY"
+    }
+
+    let cycles = isNaN(value.cycles) ? 0 : value.cycles
+    let operands = value.operands.map(e => parse_operand(e)).join(', ')
+    let code = parseInt(key, 16)
+
+    return `\tOpcode {code: ${code}, name: "${value.mnemonic}", bytes: ${value.bytes}, cycles: ${cycles}, immediate: ${value.immediate}, operands: vec!(${operands})}`
+  }).join(', \n')
+}
+
+let one = parse_obj(jsonData.unprefixed, false)
+let two = parse_obj(jsonData.cbprefixed, true)
+let header = `use super::addressing::*;
+use super::addressing::OperandType::*;
+use super::addressing::ConditionOperand::*;
+use super::addressing::RegisterOperand::*;
+use super::addressing::LiteralOperand::*;\n\n`
+
+
+fs.writeFileSync('optable.txt', header + 'const opcodes: Vec<Opcode> = vec![\n' + one + ',\n\n' + two + '\n];')

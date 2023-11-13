@@ -1,335 +1,214 @@
-use super::{CPU, registers::{Register8, Register16}};
+use super::{CPU, addressing::Operand, Flags};
 
 impl CPU {
-  fn get_alu_op_operands(&self, reg: u8) -> (u8, u8) {
-    let a = self.registers.get(Register8::A as u8);
-    
-    let other = if reg == Register8::F as u8 {
-      let addr = self.registers.get_16(Register16::HL as u8);
-      self.mem_read(addr)
-    } else { self.registers.get(reg) };
-
-    (a, other)
+  pub fn ld(&mut self, dst: &Operand, src: &Operand) {
+    let data = self.get_from_source(src);
+    self.set_to_destination(dst, data);
   }
 
-  pub(super) fn load_r_to_r(&mut self, dst: u8, src: u8) {
-    let data = self.registers.get(src);
-    self.registers.set(dst, data);
+  pub fn ldi(&mut self, src: &Operand, dst: &Operand) {
+
   }
 
-  pub(super) fn load_hl_indirect_to_r(&mut self, dst: u8) {
-    let addr = self.registers.get_hl();
-    let data = self.mem_read(addr);
-    self.registers.set(dst, data);
-  }
-
-  pub(super) fn load_r_to_hl_indirect(&mut self, src: u8) {
-    let addr = self.registers.get_hl();
-    let data = self.registers.get(src);
-    self.mem_write(addr, data)
-  }
-
-  pub(super) fn load_sp_to_mem(&mut self) {
-    let addr = self.mem_read_16(self.pc);
-    self.mem_write_16(addr, self.sp);
-  }
-
-  pub(super) fn load_hl_to_sp(&mut self) {
-    let hl = self.registers.get_16(Register16::HL as u8);
+  pub fn ldd(&mut self, src: &Operand, dst: &Operand) {
     
   }
 
-  pub(super) fn load_immediate_to_r(&mut self, reg: u8) {
-    let data = self.mem_read(self.pc);
-    self.registers.set(reg, data);
+  pub fn push(&mut self, src: &Operand) {
+    let data = self.get_from_source(src);
+    self.stack_push_16(data);
   }
 
-  pub(super) fn load_immediate_16_to_rr(&mut self, reg: u8) {
-    let data = self.mem_read_16(self.pc);
-    if reg == 3 { self.sp = data; }
-    else { self.registers.set_16(reg, data); }
+  pub fn pop(&mut self, dst: &Operand) {
+    let data = self.stack_pop_16();
+    self.set_to_destination(dst, data);
   }
 
-  pub(super) fn load_rr_indirect_to_a(&mut self, reg: u8) {
-    let addr = self.registers.get_16(reg);
-    let data = self.mem_read(addr);
-    self.registers.set(Register8::A as u8, data);
+  pub fn add(&mut self, src: &Operand) {
+    let data = self.get_from_source(src) as u8;
 
-    // if it is hl
+    self.f.remove(Flags::SUB);
+    self.update_zero_and_carries(self.a, data, 0);
 
-    // ldi
-    if reg == 2 { self.registers.set_16(Register16::HL as u8, addr.wrapping_add(1)); }
-    // ldd
-    if reg == 3 { self.registers.set_16(Register16::HL as u8, addr.wrapping_sub(1)); }
+    self.a = self.a.wrapping_add(data);
   }
 
-  pub(super) fn load_a_to_indirect_rr(&mut self, reg: u8) {
-    let data = self.registers.get(Register8::A as u8);
-    let addr = self.registers.get_16(reg);
-    self.mem_write(addr, data);
+  pub fn adc(&mut self, src: &Operand) {
+    let data = self.get_from_source(src) as u8;
+    let carry = self.carry();
 
-    // if it is hl
+    self.f.remove(Flags::SUB);
+    self.update_zero_and_carries(self.a, data, carry);
 
-    // ldi
-    if reg == 2 { self.registers.set_16(Register16::HL as u8, addr.wrapping_add(1)); }
-    // ldd
-    if reg == 3 { self.registers.set_16(Register16::HL as u8, addr.wrapping_sub(1)); }
+    self.a = self.a.wrapping_add(data).wrapping_add(carry);
   }
 
-  pub(super) fn load_a_to_memory(&mut self) {
-    let a = self.registers.get(Register8::A as u8);
-    let addr = self.pc;
-    self.mem_write(addr, a);
+  pub fn sub(&mut self, src: &Operand) {
+    let data = (self.get_from_source(src) as u8).wrapping_neg();
+
+    self.f.insert(Flags::SUB);
+    self.update_zero_and_carries(self.a, data, 0);
+
+    self.a = self.a.wrapping_add(data);
   }
 
-  pub(super) fn load_memory_to_a(&mut self) {
-    let addr = self.pc;
-    let data = self.mem_read(addr);
-    self.registers.set(Register8::A as u8, data);
+  pub fn sbc(&mut self, src: &Operand) {
+    let data = (self.get_from_source(src) as u8).wrapping_neg();
+    let carry = self.carry().wrapping_neg();
+
+    self.f.insert(Flags::SUB);
+    self.update_zero_and_carries(self.a, data, carry);
+
+    self.a = self.a.wrapping_add(data).wrapping_add(carry);
   }
 
-  pub(super) fn load_a_to_relative_c(&mut self) {
-    let a = self.registers.get(Register8::A as u8);
-    let c = self.registers.get(Register8::C as u8);
-    let addr = 0xFF00 + c as u16;
+  pub fn and(&mut self, src: &Operand) {
+    let data = self.get_from_source(src) as u8;
+    let result = self.a & data;
 
-    self.mem_write(addr, a);
+    self.update_zero(result);
+    self.f.remove(Flags::SUB);
+    self.set_hcarry_and_unset_carry();
   }
 
-  pub(super) fn load_relative_c_to_a(&mut self) {
-    let c = self.registers.get(Register8::C as u8);
-    let addr = 0xFF00 + c as u16;
+  pub fn xor(&mut self, src: &Operand) {
+    let data = self.get_from_source(src) as u8;
+    let result = self.a ^ data;
 
-    let data = self.mem_read(addr);
-    self.registers.set(Register8::A as u8, data);
+    self.update_zero(result);
+    self.f.remove(Flags::SUB);
+    self.unset_hcarry_and_carry();
   }
 
-  pub(super) fn load_a_to_relative(&mut self) {
-    let a = self.registers.get(Register8::A as u8);
-    let n = self.mem_read(self.pc);
-    let addr = 0xFF00 + n as u16;
+  pub fn or(&mut self, src: &Operand) {
+    let data = self.get_from_source(src) as u8;
+    let result = self.a | data;
 
-    self.mem_write(addr, a);
+    self.update_zero(result);
+    self.f.remove(Flags::SUB);
+    self.unset_hcarry_and_carry();
   }
 
-  pub(super) fn load_relative_to_a(&mut self) {
-    let n = self.mem_read(self.pc);
-    let addr = 0xFF00 + n as u16;
-
-    let data = self.mem_read(addr);
-    self.registers.set(Register8::A as u8, data);
+  pub fn cp(&mut self, src: &Operand) {
+    let data = (self.get_from_source(src) as u8).wrapping_neg();
+    let result = self.a.wrapping_add(data);
+    
+    self.f.insert(Flags::SUB);
+    self.update_zero_and_carries(self.a, data, 0);
   }
 
-  pub(super) fn inc_r(&mut self, reg: u8) {
-    let value = self.registers.get(reg);
-    self.registers.set(reg, value.wrapping_add(1));
+  pub fn inc(&mut self, src: &Operand) {
+    let data = self.get_from_source(src);
+    let result = data.wrapping_add(1);
 
-    self.registers.set_zero(value == 0);
-    self.registers.set_sub(false);
-    self.registers.update_hcarry(value, 1);
+    self.f.remove(Flags::SUB);
+    self.update_zero(result as u8);
+    self.update_hcarry(data as u8, 1, 0);
+
+    self.set_to_destination(src, result);
   }
 
-  pub(super) fn dec_r(&mut self, reg: u8) {
-    let value = self.registers.get(reg);
-    self.registers.set(reg, value.wrapping_sub(1));
+  pub fn dec(&mut self, src: &Operand) {
+    let data = self.get_from_source(src);
+    let result = data.wrapping_sub(1);
 
-    self.registers.set_zero(value == 0);
-    self.registers.set_sub(true);
-    self.registers.update_hcarry(value, 1u8.wrapping_neg());
+    self.f.insert(Flags::SUB);
+    self.update_zero(result as u8);
+    self.update_hcarry(data as u8, 1u8.wrapping_neg(), 0);
+
+    self.set_to_destination(src, result);
   }
 
-  pub(super) fn inc_rr(&mut self, reg: u8) {
-    let value = self.registers.get_16(reg);
-    self.registers.set_16(reg, value.wrapping_add(1));
+  pub fn add_16(&mut self, src: &Operand) {
+    let data = self.get_from_source(src);
+    let hl = self.get_hl();
+
+    self.f.remove(Flags::SUB);
+    self.update_hcarry_16(hl, data);
+    self.update_carry_16(hl, data);
+
+    self.set_hl(hl.wrapping_add(data));
   }
 
-  pub(super) fn dec_rr(&mut self, reg: u8) {
-    let value = self.registers.get_16(reg);
-    self.registers.set_16(reg, value.wrapping_sub(1));
-  }
+  pub fn rlca(&mut self) {
+    let carry = self.a >> 7;
+    let result = (self.a << 1) | carry;
+    self.a = result;
 
-  pub(super) fn add(&mut self, reg: u8) {
-    let (a, other) = self.get_alu_op_operands(reg);
-
-    let result = a.wrapping_add(other);
-    self.registers.set(Register8::A as u8, result);
-
-    self.registers.set_sub(false);
-    self.registers.update_zero_and_carries_flags(a, other);
-  }
-
-  pub(super) fn adc(&mut self, reg: u8) {
-    let (a, other) = self.get_alu_op_operands(reg);
-
-    let carry = self.registers.get_carry() as u8;
-    let result = a.wrapping_add(other).wrapping_add(carry);
-    self.registers.set(Register8::A as u8, result);
-
-    self.registers.set_sub(false);
-    self.registers.update_zero_and_carries_flags_3(a, other, carry);
-  } 
-
-  pub(super) fn sub(&mut self, reg: u8) {
-    let (a, other) = self.get_alu_op_operands(reg);
-
-    let other = other.wrapping_neg();
-    let result = a.wrapping_add(other);
-    self.registers.set(Register8::A as u8, result);
-
-    self.registers.set_sub(false);
-    self.registers.update_zero_and_carries_flags(a, other);
-  } 
-
-  pub(super) fn sbc(&mut self, reg: u8) {
-    let (a, other) = self.get_alu_op_operands(reg);
-
-    let carry = (self.registers.get_carry() as u8).wrapping_neg();
-    let other = other.wrapping_neg();
-    let result = a.wrapping_add(other).wrapping_add(carry);
-    self.registers.set(Register8::A as u8, result);
-
-    self.registers.set_sub(false);
-    self.registers.update_zero_and_carries_flags_3(a, other, carry);
-  } 
-
-  pub(super) fn and(&mut self, reg: u8) {
-    let (a, other) = self.get_alu_op_operands(reg);
-
-    let result = a & other;
-    self.registers.set(Register8::A as u8, result);
-
-    self.registers.set_zero(result == 0);
-    self.registers.set_sub(false);
-    self.registers.set_carry(true);
-    self.registers.set_hcarry(false);
-  } 
-
-  pub(super) fn xor(&mut self, reg: u8) {
-    let (a, other) = self.get_alu_op_operands(reg);
-
-    let result = a ^ other;
-    self.registers.set(Register8::A as u8, result);
-
-    self.registers.set_zero(result == 0);
-    self.registers.set_sub(false);
-    self.registers.set_carry(false);
-    self.registers.set_hcarry(false);
-  } 
-
-  pub(super) fn or(&mut self, reg: u8) {
-    let (a, other) = self.get_alu_op_operands(reg);
-
-    let result = a | other;
-    self.registers.set(Register8::A as u8, result);
-
-    self.registers.set_zero(result == 0);
-    self.registers.set_sub(false);
-    self.registers.set_carry(false);
-    self.registers.set_hcarry(false);
-  } 
-
-  pub(super) fn cp(&mut self, reg: u8) {
-    let (a, other) = self.get_alu_op_operands(reg);
-    let other = other.wrapping_neg();
-
-    self.registers.set_sub(true);
-    self.registers.update_zero_and_carries_flags(a, other);
-  }
-
-  pub(super) fn add_rr_to_hl(&mut self, reg: u8) {
-    let data = if reg == 3 {
-      self.sp
-    } else { self.registers.get_16(reg) };
-
-    let hl = self.registers.get_16(Register16::HL as u8);
-
-    let result = hl.wrapping_add(data);
-    self.registers.set_16(Register16::HL as u8, result);
-
-    self.registers.set_sub(false);
-    self.registers.update_carry_16(hl, data);
-    self.registers.update_hcarry_16(hl, data);
-  }
-
-  pub(super) fn rlca(&mut self) {
-    let a = self.registers.get(Register8::A as u8);
-    let carry = a >> 7;
-    let result: u8 = (a << 1) | carry;
-    self.registers.set(Register8::A as u8, result);
-
-    self.registers.set_zero(false);
-    self.registers.set_sub(false);
-    self.registers.set_carry(carry != 0);
-    self.registers.set_hcarry(false);
+    self.update_flags_after_rotation(carry);
   }
   
-  pub(super) fn rrca(&mut self) {
-    let a = self.registers.get(Register8::A as u8);
-    let carry = a << 7;
-    let result = (a >> 1) | carry;
-    self.registers.set(Register8::A as u8, result);
+  pub fn rrca(&mut self) {
+    let carry = self.a << 7;
+    let result = (self.a >> 1) | carry;
+    self.a = result;
 
-    self.registers.set_zero(false);
-    self.registers.set_sub(false);
-    self.registers.set_carry(carry != 0);
-    self.registers.set_hcarry(false);
+    self.update_flags_after_rotation(carry);
   }
 
-  pub(super) fn rla(&mut self) {
-    let a = self.registers.get(Register8::A as u8);
-    let carry = self.registers.get_carry() as u8;
-    let bit = a >> 7;
-    let result = (a << 1) | carry;
-    self.registers.set(Register8::A as u8, result);
+  pub fn rla(&mut self) {
+    let carry = self.carry();
+    let bit = self.a >> 7;
+    let result = (self.a << 1) | carry;
+    self.a = result;
 
-    self.registers.set_zero(false);
-    self.registers.set_sub(false);
-    self.registers.set_carry(bit != 0);
-    self.registers.set_hcarry(false);
+    self.update_flags_after_rotation(bit); 
   }
 
-  pub(super) fn rra(&mut self) {
-    let a = self.registers.get(Register8::A as u8);
-    let carry = self.registers.get_carry() as u8;
-    let bit = a & 1;
-    let result = (a >> 1) | (carry << 7);
-    self.registers.set(Register8::A as u8, result);
+  pub fn rra(&mut self) {
+    let carry = self.carry();
+    let bit = self.a & 1;
+    let result = (self.a >> 1) | (carry << 7);
+    self.a = result;
 
-    self.registers.set_zero(false);
-    self.registers.set_sub(false);
-    self.registers.set_carry(bit != 0);
-    self.registers.set_hcarry(false);
+    self.update_flags_after_rotation(bit); 
   }
 
-  pub(super) fn daa(&mut self) {
-    todo!("implement daa");
+  pub fn ccf(&mut self) {
+    self.f.remove(Flags::SUB);
+    self.f.remove(Flags::HCARRY);
+    self.f.toggle(Flags::CARRY);
   }
 
-  pub(super) fn scf(&mut self) {
-    self.registers.set_carry(true);
-    self.registers.set_hcarry(false);
-    self.registers.set_sub(false);
+  pub fn scf(&mut self) {
+    self.f.remove(Flags::SUB);
+    self.f.remove(Flags::HCARRY);
+    self.f.insert(Flags::CARRY);
   }
 
-  pub(super) fn cpl(&mut self) {
-    let a = self.registers.get(Register8::A as u8);
-    self.registers.set(Register8::A as u8, !a);
-
-    self.registers.set_sub(true);
-    self.registers.set_hcarry(true);
+  pub fn jp(&mut self, dst: &Operand) {
+    let addr = self.get_from_source(dst);
+    self.pc = addr;
   }
 
-  pub(super) fn ccf(&mut self) {
-    let carry = self.registers.get_carry();
-    self.registers.set_carry(!carry);
-
-    self.registers.set_sub(false);
-    self.registers.set_hcarry(false);
+  pub fn jpc(&mut self, cond: &Operand, dst: &Operand) {
+    let cond = self.get_from_source(cond);
+    if cond != 0 {
+      self.jp(dst);
+    }
   }
 
-  pub(super) fn jp_immediate(&mut self) {
-    self.pc = self.mem_read_16(self.pc);
+  pub fn jr(&mut self, dst: &Operand) {
+    let addr = self.get_from_source(dst) as i8;
+    self.pc = self.pc.wrapping_add_signed(addr as i16);
   }
 
+  pub fn jrc(&mut self, cond: &Operand, dst: &Operand) {
+    let cond = self.get_from_source(cond);
+    if cond != 0 {
+      self.jr(dst);
+    }
+  }
+
+  pub fn call(&mut self, dst: &Operand) {
+    todo!("LOL")
+  }
+
+  pub fn callc(&mut self, cond: &Operand, dst: &Operand) {
+    let cond = self.get_from_source(cond);
+    if cond != 0 {
+      self.call(dst);
+    }
+  }
 
 }
