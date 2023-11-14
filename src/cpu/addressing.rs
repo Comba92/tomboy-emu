@@ -7,7 +7,7 @@ pub struct Opcode {
   pub bytes: u8,
   pub cycles: u8,
   pub immediate: bool,
-  pub operands: Vec<Operand>
+  pub operands: Vec<Operand>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -21,6 +21,17 @@ pub enum OperandType {
   Register(RegisterOperand),
   Condition(ConditionOperand),
   Literal(LiteralOperand)
+}
+
+impl OperandType {
+  pub fn is_register_16(&self) -> bool { 
+    if let OperandType::Register(reg) = self {
+      match reg {
+        RegisterOperand::AF | RegisterOperand::BC | RegisterOperand::DE | RegisterOperand::HL => true,
+        _ => false,
+      }
+    } else { false }
+  }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -141,6 +152,7 @@ impl CPU {
 
       OperandType::Literal(lit) => {
         match lit {
+          LiteralOperand::a8 => 0xFF00 + self.mem_read(self.pc) as u16,
           LiteralOperand::n16 | LiteralOperand::a16 =>
             self.mem_read_16(self.pc),
           _ => panic!("Impossible to address 8bit literal value.")

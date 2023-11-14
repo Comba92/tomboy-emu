@@ -116,12 +116,24 @@ impl CPU {
   }
   
   pub fn mem_read_16(&self, addr: u16) -> u16 {
-    todo!("Don't know if it is little or big endian")
+    let low = self.mem_read(addr);
+    let high = self.mem_read(addr + 1);
+
+    u16::from_le_bytes([low, high])
   }
 
   pub fn mem_write_16(&mut self, addr: u16, data: u16) {
-    // first lower, then upper, so maybe little endian
-    todo!("Don't know if it is little or big endian")
+    let [low, high] = data.to_le_bytes();
+    self.mem_write(addr, low);
+    self.mem_write(addr + 1, high);
+  }
+
+  pub fn stack_push(&mut self, data: u16) {
+    todo!("")
+  }
+
+  pub fn stack_pop(&mut self) -> u16 {
+    todo!("")
   }
 
 /*   pub fn stack_push(&mut self, data: u8) {}
@@ -143,7 +155,7 @@ impl CPU {
     loop {
       let code = self.ram[self.pc as usize];
       let opcode = OPTABLE.get(&code).unwrap();
-      // println!("[Running]: {:x}, {:?}", code, opcode);
+      println!("[Running]: {:x}, {:?}", code, opcode);
       self.pc += 1;
       let pc_state = self.pc;
 

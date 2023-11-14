@@ -7,10 +7,10 @@ const conds = ["CY", "NC", "Z", "NZ"]
 const bits = ["0", "1" , "2" , "3" , "4" , "5" , "6" , "7"]
 const literals = ["n8", "n16", "a8", "a16", "e8"]
 
-function parse_operand(data, cb) {
+function parse_operand(data) {
   let type = '';
 
-  if (data.name[0] == '$') { type = 'Literal(n16)' }
+  if (data.name[0] == '$') { type = 'Literal(n8)' }
   else if (conds.includes(data.name)) { type = 'Condition(' + data.name + ')'}
   else if (bits.includes(data.name)) { type = 'Literal(n8)' }
   else if (literals.includes(data.name)) { type = 'Literal(' + data.name + ')' }
@@ -33,8 +33,8 @@ function parse_obj(data) {
   }).join(', \n')
 }
 
-let one = parse_obj(jsonData.unprefixed, false)
-let two = parse_obj(jsonData.cbprefixed, true)
+let unprefixed = parse_obj(jsonData.unprefixed)
+let cbprefixed = parse_obj(jsonData.cbprefixed)
 let header = `use super::addressing::*;
 use super::addressing::OperandType::*;
 use super::addressing::ConditionOperand::*;
@@ -42,4 +42,5 @@ use super::addressing::RegisterOperand::*;
 use super::addressing::LiteralOperand::*;\n\n`
 
 
-fs.writeFileSync('optable.txt', header + 'const opcodes: Vec<Opcode> = vec![\n' + one + ',\n\n' + two + '\n];')
+fs.writeFileSync('optable.txt', header + 'const opcodes: Vec<Opcode> = vec![\n' + unprefixed + ',\n\n' + cbprefixed + '\n];')
+

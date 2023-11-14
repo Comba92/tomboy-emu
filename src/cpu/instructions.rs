@@ -6,21 +6,35 @@ impl CPU {
     self.set_to_destination(dst, data);
   }
 
-  pub fn ldi(&mut self, src: &Operand, dst: &Operand) {
+  pub fn ld_sp_rel(&mut self, offset: &Operand) {
+    let data = (self.get_from_source(offset) as i8) as i16;
+    let result = self.sp.wrapping_add_signed(data);
 
+    self.f.remove(Flags::ZERO);
+    self.f.remove(Flags::SUB);
+    self.update_hcarry_16(self.sp, data as u16);
+    self.update_carry_16(self.sp, data as u16);
+
+    self.set_hl(result);
+  }
+
+  pub fn ldi(&mut self, dst: &Operand, src: &Operand) {
+    let data = self.get_from_source(src).wrapping_add(1);
+    self.set_to_destination(dst, data);
   }
 
   pub fn ldd(&mut self, src: &Operand, dst: &Operand) {
-    
+    let data = self.get_from_source(src).wrapping_sub(1);
+    self.set_to_destination(dst, data);
   }
 
   pub fn push(&mut self, src: &Operand) {
     let data = self.get_from_source(src);
-    self.stack_push_16(data);
+    self.stack_push(data);
   }
 
   pub fn pop(&mut self, dst: &Operand) {
-    let data = self.stack_pop_16();
+    let data = self.stack_pop();
     self.set_to_destination(dst, data);
   }
 
@@ -101,9 +115,11 @@ impl CPU {
     let data = self.get_from_source(src);
     let result = data.wrapping_add(1);
 
-    self.f.remove(Flags::SUB);
-    self.update_zero(result as u8);
-    self.update_hcarry(data as u8, 1, 0);
+    if !src.kind.is_register_16() {
+      self.f.remove(Flags::SUB);
+      self.update_zero(result as u8);
+      self.update_hcarry(data as u8, 1, 0);
+    }
 
     self.set_to_destination(src, result);
   }
@@ -112,9 +128,11 @@ impl CPU {
     let data = self.get_from_source(src);
     let result = data.wrapping_sub(1);
 
-    self.f.insert(Flags::SUB);
-    self.update_zero(result as u8);
-    self.update_hcarry(data as u8, 1u8.wrapping_neg(), 0);
+    if !src.kind.is_register_16() {
+      self.f.insert(Flags::SUB);
+      self.update_zero(result as u8);
+      self.update_hcarry(data as u8, 1u8.wrapping_neg(), 0);
+    }
 
     self.set_to_destination(src, result);
   }
@@ -122,13 +140,26 @@ impl CPU {
   pub fn add_16(&mut self, src: &Operand) {
     let data = self.get_from_source(src);
     let hl = self.get_hl();
+    let result = hl.wrapping_add(data);
+    self.set_hl(result);
 
     self.f.remove(Flags::SUB);
     self.update_hcarry_16(hl, data);
     self.update_carry_16(hl, data);
-
-    self.set_hl(hl.wrapping_add(data));
   }
+
+  pub fn add_sp_rel(&mut self, offset: &Operand) {
+    let data = (self.get_from_source(offset) as i8) as i16;
+    let result = self.sp.wrapping_add_signed(data);
+
+    self.f.remove(Flags::ZERO);
+    self.f.remove(Flags::SUB);
+    self.update_hcarry_16(self.sp, data as u16);
+    self.update_carry_16(self.sp, data as u16);
+
+    self.sp = result;
+  }
+
 
   pub fn rlca(&mut self) {
     let carry = self.a >> 7;
@@ -176,6 +207,12 @@ impl CPU {
     self.f.insert(Flags::CARRY);
   }
 
+  pub fn cpl(&mut self) {
+    self.a = !self.a;
+    self.f.insert(Flags::SUB);
+    self.f.insert(Flags::HCARRY);
+  }
+
   pub fn jp(&mut self, dst: &Operand) {
     let addr = self.get_from_source(dst);
     self.pc = addr;
@@ -210,5 +247,22 @@ impl CPU {
       self.call(dst);
     }
   }
+
+  pub fn ret(&mut self) {
+
+  }
+
+  pub fn retc(&mut self, cond: &Operand) {
+    let cond = self.get_from_source(cond);
+    if cond != 0 {
+      self.ret();
+    }
+  }
+
+  pub fn rst(&mut self, dst: &Operand) {
+
+  }
+
+  pub fn reti(&mut self) {}
 
 }
