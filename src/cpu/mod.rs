@@ -129,17 +129,15 @@ impl CPU {
   }
 
   pub fn stack_push(&mut self, data: u16) {
-    todo!("")
+    self.mem_write_16(self.sp.wrapping_sub(2), data);
+    self.sp = self.sp.wrapping_sub(2);
   }
 
   pub fn stack_pop(&mut self) -> u16 {
-    todo!("")
+    let value = self.mem_read_16(self.sp);
+    self.sp = self.sp.wrapping_add(2);
+    value
   }
-
-/*   pub fn stack_push(&mut self, data: u8) {}
-  pub fn stack_pop(&mut self) -> u8 {}
-  pub fn stack_push_16(&mut self, data: u16) {}
-  pub fn stack_pop_16(&mut self) -> u16 {} */
 
   pub fn load_and_run(&mut self, program: Vec<u8>) {
     self.load(program);

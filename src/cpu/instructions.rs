@@ -105,7 +105,6 @@ impl CPU {
 
   pub fn cp(&mut self, src: &Operand) {
     let data = (self.get_from_source(src) as u8).wrapping_neg();
-    let result = self.a.wrapping_add(data);
     
     self.f.insert(Flags::SUB);
     self.update_zero_and_carries(self.a, data, 0);
@@ -238,7 +237,9 @@ impl CPU {
   }
 
   pub fn call(&mut self, dst: &Operand) {
-    todo!("LOL")
+    self.stack_push(self.pc);
+    let addr = self.get_from_source(dst);
+    self.pc = addr;
   }
 
   pub fn callc(&mut self, cond: &Operand, dst: &Operand) {
@@ -249,7 +250,7 @@ impl CPU {
   }
 
   pub fn ret(&mut self) {
-
+    self.pc = self.stack_pop();
   }
 
   pub fn retc(&mut self, cond: &Operand) {
@@ -258,11 +259,5 @@ impl CPU {
       self.ret();
     }
   }
-
-  pub fn rst(&mut self, dst: &Operand) {
-
-  }
-
-  pub fn reti(&mut self) {}
 
 }
