@@ -17,7 +17,7 @@ impl InterruptRegister {
 
 pub struct MMU {
   rom: Vec<u8>,
-  pub ram: [u8; 1024 * 4],
+  pub ram: [u8; 1024 * 8],
   hram: [u8; 128],
   ie_reg: InterruptRegister,
   if_reg: InterruptRegister,
@@ -26,7 +26,7 @@ pub struct MMU {
 impl MMU {
   pub fn new(rom: Vec<u8>) -> Self {
     MMU {
-      ram: [0; 1024 * 4],
+      ram: [0; 1024 * 8],
       hram: [0; 128],
       rom,
       ie_reg: InterruptRegister::new(0),
