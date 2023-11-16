@@ -1,4 +1,9 @@
-use super::{CPU, addressing::Operand, Flags};
+use super::{CPU, addressing::{Operand, OperandType, RegisterOperand}, Flags};
+
+const REG_A_OPERAND: Operand = Operand { 
+  kind:OperandType::Register(RegisterOperand::A), 
+  immediate: true,
+};
 
 impl CPU {
   pub fn ld(&mut self, dst: &Operand, src: &Operand) {
@@ -187,38 +192,99 @@ impl CPU {
     self.a = result;
   }
 
-  pub fn rlca(&mut self) {
-    let carry = self.a >> 7;
-    let result = (self.a << 1) | carry;
-    self.a = result;
+  pub fn rlc(&mut self, src: &Operand) {
+    let data = self.get_from_source(src);
+    let carry = data >> 7;
+    let result = (data << 1) | carry;
+    self.set_to_destination(src, result);
 
-    self.update_flags_after_rotation(carry);
+    self.update_flags_after_rotation(result, carry);
+  }
+
+  pub fn rlca(&mut self) {
+    self.rlc(&REG_A_OPERAND);
+    self.f.remove(Flags::ZERO);
   }
   
-  pub fn rrca(&mut self) {
-    let carry = self.a << 7;
-    let result = (self.a >> 1) | carry;
-    self.a = result;
+  pub fn rrc(&mut self, src: &Operand) {
+    let data = self.get_from_source(src);
+    let carry = data << 7;
+    let result = (data >> 1) | carry;
+    self.set_to_destination(src, result);
 
-    self.update_flags_after_rotation(carry);
+    self.update_flags_after_rotation(result, carry);
+  }
+
+  pub fn rrca(&mut self) {
+    self.rrc(&REG_A_OPERAND);
+    self.f.remove(Flags::ZERO);
+  }
+
+  pub fn rl(&mut self, src: &Operand) {
+    let data = self.get_from_source(src);
+    let carry = self.carry() as u16;
+    let bit = data >> 7;
+    let result = (data << 1) | carry;
+    self.set_to_destination(src, result);
+
+    self.update_flags_after_rotation(result, bit); 
   }
 
   pub fn rla(&mut self) {
-    let carry = self.carry();
-    let bit = self.a >> 7;
-    let result = (self.a << 1) | carry;
-    self.a = result;
+    self.rl(&REG_A_OPERAND);
+    self.f.remove(Flags::ZERO);
+  }
 
-    self.update_flags_after_rotation(bit); 
+  pub fn rr(&mut self, src: &Operand) {
+    let data = self.get_from_source(src);
+    let carry = self.carry() as u16;
+    let bit = data & 1;
+    let result = (data >> 1) | (carry << 7);
+    self.set_to_destination(src, result);
+
+    self.update_flags_after_rotation(result, bit); 
   }
 
   pub fn rra(&mut self) {
-    let carry = self.carry();
-    let bit = self.a & 1;
-    let result = (self.a >> 1) | (carry << 7);
-    self.a = result;
+    self.rr(&REG_A_OPERAND);
+    self.f.remove(Flags::ZERO);
+  }
 
-    self.update_flags_after_rotation(bit); 
+  pub fn sla(&mut self, src: &Operand) {
+    let data = self.get_from_source(src);
+    let bit = data >> 7;
+    let result = data << 1;
+    self.set_to_destination(src, result);
+
+    self.update_flags_after_rotation(result, bit); 
+  }
+
+  pub fn sra(&mut self, src: &Operand) {
+    let data = self.get_from_source(src);
+    let bit = data & 1;
+    let last = data & 0x80;
+    let result = data >> 1 | (last << 7);
+    self.set_to_destination(src, result);
+
+    self.update_flags_after_rotation(result, bit); 
+  }
+
+  pub fn srl(&mut self, src: &Operand) {
+    let data = self.get_from_source(src);
+    let bit = data & 1;
+    let result = data >> 1;
+    self.set_to_destination(src, result);
+
+    self.update_flags_after_rotation(result, bit); 
+  }
+
+  pub fn swap(&mut self, src: &Operand) {
+    let data = self.get_from_source(src);
+    let [high, low] = data.to_be_bytes();
+    let result = u16::from_be_bytes([low, high]);
+    self.set_to_destination(src, result);
+
+    self.update_flags_after_rotation(result, 0);
   }
 
   pub fn ccf(&mut self) {
@@ -287,20 +353,45 @@ impl CPU {
     }
   }
 
+  pub fn rst(&mut self, dst: &Operand) {
+    let addr = self.get_from_source(dst);
+    self.stack_push(self.pc);
+    self.pc = addr;
+  }
+
   pub fn reti(&mut self) {
     self.ret();
     self.ime = true;
-  }
-
-  pub fn rst(&mut self, dst: &Operand) {
-    let addr = self.get_from_source(dst);
-    let data = self.mem_read(addr);
-    self.stack_push(self.pc);
-    self.pc = data as u16;
   }
 
    // The effect of ei is delayed by one instruction. This means that ei followed immediately by di does not allow any interrupts between them. This interacts with the halt bug in an interesting way.
 
    pub fn di(&mut self) { self.ime = false; }
    pub fn ei(&mut self) { self.ime_to_set = true; }
+
+  pub fn bit(&mut self, bit: &Operand, src: &Operand) {
+    let pos = self.get_from_source(bit);
+    let data = self.get_from_source(src);
+
+    let result = data & (1 << pos);
+    self.update_zero(result as u8);
+    self.f.remove(Flags::SUB);
+    self.f.insert(Flags::HCARRY);
+  }
+
+  pub fn set(&mut self, bit: &Operand, src: &Operand) {
+    let pos = self.get_from_source(bit);
+    let data = self.get_from_source(src);
+
+    let result = data | (1 << pos);
+    self.set_to_destination(src, result);
+  }
+
+  pub fn res(&mut self, bit: &Operand, src: &Operand) {
+    let pos = self.get_from_source(bit);
+    let data = self.get_from_source(src);
+
+    let result = data & !(1 << pos);
+    self.set_to_destination(src, result);
+  }
 }

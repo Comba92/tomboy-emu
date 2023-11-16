@@ -1,7 +1,7 @@
 use super::{addressing::Opcode, CPU};
 
 impl CPU {
-  pub fn decode(&mut self, opcode: &Opcode) -> Result<(), &'static str> {
+  pub fn decode(&mut self, opcode: &Opcode) {
     let operands = &opcode.operands;
 
     match opcode.code {
@@ -72,8 +72,26 @@ impl CPU {
       0xFB => self.ei(),
 
       _ => unimplemented!("Unimplemented instruction {:04x}.", opcode.code),
-    };
+    }
+  }
+  pub fn cb_decode(&mut self, opcode: &Opcode) {
+    let operands = &opcode.operands;
 
-    Ok(())
+    match opcode.code {
+      0x00 ..= 0x07 => self.rlc(&operands[0]),
+      0x08 ..= 0x0f => self.rrc(&operands[0]),
+      0x10 ..= 0x17 => self.rl(&operands[0]),
+      0x18 ..= 0x1f => self.rr(&operands[0]),
+      0x20 ..= 0x27 => self.sla(&operands[0]),
+      0x28 ..= 0x2f => self.sra(&operands[0]),
+      0x30 ..= 0x37 => self.swap(&operands[0]),
+      0x38 ..= 0x3f => self.srl(&operands[0]),
+
+      0x40 ..= 0x7f => self.bit(&operands[0], &operands[1]),
+      0x80 ..= 0xbf => self.res(&operands[0], &operands[1]),
+      0xc0 ..= 0xff => self.set(&operands[0], &operands[1]),
+
+      _ => unimplemented!("Unimplemented CB instruction {:04x}.", opcode.code),
+    }
   }
 }

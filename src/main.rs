@@ -44,7 +44,7 @@ fn main() {
       }
     }
 
-    cpu.step().unwrap();
+    cpu.step();
     
     canvas.present();
     std::thread::sleep(Duration::from_millis(100));

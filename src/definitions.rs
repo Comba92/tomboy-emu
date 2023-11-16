@@ -19,6 +19,9 @@ pub const IO_REGISTERS_END:   u16 = 0xff7f;
 pub const HRAM_START:         u16 = 0xff80;
 pub const HRAM_END:           u16 = 0xfffe;
 
+pub const INTERRUPT_ENABLE: u16 = 0xffff;
+pub const INTERRUPT_FLAG: u16   = 0xff0f;
+
 pub const SP_INIT: u16 = 0xfffe;
 pub const PC_INIT: u16 = 0x0100;
 

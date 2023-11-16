@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::{definitions::{PC_INIT, SP_INIT, WRAM_START}, mmu::MMU};
+use crate::{definitions::{PC_INIT, SP_INIT, WRAM_START, INTERRUPT_ENABLE, INTERRUPT_FLAG}, mmu::{MMU, InterruptRegister}};
 use bitflags::bitflags;
 use optable::{OPTABLE, CB_OPTABLE};
 
@@ -106,8 +106,8 @@ impl CPU {
     self.f.remove(Flags::HCARRY);
     self.f.remove(Flags::CARRY);
   }
-  pub fn update_flags_after_rotation(&mut self, bit: u8) {
-    self.f.remove(Flags::ZERO);
+  pub fn update_flags_after_rotation(&mut self, result: u16, bit: u16) {
+    self.update_zero(result as u8);
     self.f.remove(Flags::SUB);
     self.f.remove(Flags::HCARRY);
     self.f.set(Flags::CARRY, bit != 0);
@@ -144,6 +144,30 @@ impl CPU {
     value
   }
 
+  pub fn get_ie(&self) -> InterruptRegister {
+    InterruptRegister::new( self.mem_read(INTERRUPT_ENABLE) )
+  }
+
+  pub fn get_if(&self) -> InterruptRegister {
+    InterruptRegister::new( self.mem_read(INTERRUPT_FLAG) )
+  }
+
+  pub fn handle_interrupts(&mut self) {
+    let if_reg = self.get_if();
+    let ie_reg = self.get_ie();
+
+    if if_reg.is_empty() || ie_reg.is_empty() {
+      return;
+    } 
+      
+    for (_, interrupt) in if_reg.iter_names() {
+      if ie_reg.contains(interrupt) {
+        self.ime = false;
+      }
+    }
+    
+  }
+
   pub fn load_and_run(&mut self, program: Vec<u8>) {
     self.load_to_ram(program);
     self.run();
@@ -156,22 +180,22 @@ impl CPU {
 
   pub fn run(&mut self) {
     loop {
-      if let Err(s) = self.step() {
-        println!("{s}");
-        break;
-      };
+      self.step();
     }
   } 
 
-  pub fn step(&mut self) -> Result<(), &'static str> {
+  pub fn step(&mut self) {
     let code = self.memory.mem_read(self.pc);
 
     let opcode = if code == 0xCB {
       self.pc = self.pc.wrapping_add(1);
       let code = self.memory.mem_read(self.pc);
       CB_OPTABLE.get(&code).unwrap()
-    } else { OPTABLE.get(&code).unwrap() };
+    } else { 
+      OPTABLE.get(&code).unwrap() 
+    };
 
+    // move pc to first operand, if there are any
     self.pc = self.pc.wrapping_add(1);
     let pc_state = self.pc;
 
@@ -179,14 +203,24 @@ impl CPU {
     let third =  self.mem_read(self.pc.wrapping_add(1));
     println!("[Running]: {:#06x}: {},\t({:#04x}, {:#04x}, {:#04x})", self.pc.wrapping_sub(1),opcode.name, code, second, third);
 
-    if let Err(s) = self.decode(opcode) {
-      return Err(s);
-    };
 
-    if pc_state == self.pc {
-      self.pc = self.pc.wrapping_add(opcode.bytes as u16 - (if code == 0xCB { 2 } else { 1 }));
+    if code == 0xCB {
+      self.cb_decode(opcode);
+    } else { 
+      self.decode(opcode); 
     }
 
-    Ok(())
+    if pc_state == self.pc {
+      let head = if code == 0xCB { 2 } else { 1 };
+      self.pc = self.pc.wrapping_add(opcode.bytes as u16 - head);
+    }
+
+    if self.ime {
+      self.handle_interrupts();
+    }
+
+    if self.ime_to_set {
+      self.ime = true;
+    }
   }
 }

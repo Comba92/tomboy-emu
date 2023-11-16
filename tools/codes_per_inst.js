@@ -18,9 +18,10 @@ function get_codes_for_names(data) {
     map.set(value.mnemonic, codes)
   })
 
-  return map
+  return Array.from(map)
 }
 
-const data = get_codes_for_names(jsonData.unprefixed)
-console.log(get_names(jsonData.unprefixed))
-fs.writeFileSync('codes.txt', JSON.stringify(Array.from(data), null, 2))
+const unprefixed = get_codes_for_names(jsonData.unprefixed)
+const cbprefixed = get_codes_for_names(jsonData.cbprefixed)
+let data = {unprefixed: unprefixed, cbprefixed: cbprefixed}
+fs.writeFileSync('codes.txt', JSON.stringify(data, null, 2))

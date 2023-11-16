@@ -10,7 +10,7 @@ const literals = ["n8", "n16", "a8", "a16", "e8"]
 function parse_operand(data) {
   let type = '';
 
-  if (data.name[0] == '$') { type = 'Literal(n8)' }
+  if (data.name[0] == '$' || !isNaN(Number(data.name[0]))) { type = 'Literal(n8)' }
   else if (conds.includes(data.name)) { type = 'Condition(' + data.name + ')'}
   else if (bits.includes(data.name)) { type = 'Literal(n8)' }
   else if (literals.includes(data.name)) { type = 'Literal(' + data.name + ')' }
