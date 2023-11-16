@@ -1,6 +1,7 @@
 #[allow(dead_code)]
 #[derive(Debug)]
 pub struct Cartridge {
+  rom: Vec<u8>,
   title: String,
   publisher: u16,
   cgb_flag: u8,
@@ -26,7 +27,7 @@ impl Cartridge {
   pub fn new(data: Vec<u8>) -> Self {
     if data.len() < 0x14f {
       panic!("Rom is too small, and doesn't contain a full header.");
-    }
+    } 
 
     let title = extract_string(&data, 0x134, 0x143);
     let publisher = u16::from_be_bytes([data[0x144], data[0x145]]);
@@ -47,8 +48,8 @@ impl Cartridge {
     }
     let checksum_pass = checksum == check;
 
-
     Cartridge {
+      rom: data,
       title,
       publisher,
       cgb_flag,

@@ -23,7 +23,7 @@ impl CPU {
     self.set_to_destination(dst, data);
   }
 
-  pub fn ldd(&mut self, src: &Operand, dst: &Operand) {
+  pub fn ldd(&mut self, dst: &Operand, src: &Operand) {
     let data = self.get_from_source(src).wrapping_sub(1);
     self.set_to_destination(dst, data);
   }
@@ -159,6 +159,33 @@ impl CPU {
     self.sp = result;
   }
 
+  pub fn daa(&mut self) {
+    let a = self.a;
+
+    let mut correction: u8 = 0;
+    let mut carry = false;
+
+    if self.f.contains(Flags::HCARRY) || 
+      (!self.f.contains(Flags::SUB) && a & 0xf > 0x9) {
+        correction |= 0x6;
+    }
+
+    if self.f.contains(Flags::CARRY) || 
+      (!self.f.contains(Flags::SUB) && a > 0x99) {
+        correction |= 0x60;
+        carry = true;
+    }
+    
+    let result = 
+      if self.f.contains(Flags::SUB) { correction.wrapping_neg() } 
+      else { correction };
+    
+    self.update_zero(result);
+    self.f.remove(Flags::HCARRY);
+    self.f.set(Flags::CARRY, carry);
+
+    self.a = result;
+  }
 
   pub fn rlca(&mut self) {
     let carry = self.a >> 7;
@@ -260,4 +287,20 @@ impl CPU {
     }
   }
 
+  pub fn reti(&mut self) {
+    self.ret();
+    self.ime = true;
+  }
+
+  pub fn rst(&mut self, dst: &Operand) {
+    let addr = self.get_from_source(dst);
+    let data = self.mem_read(addr);
+    self.stack_push(self.pc);
+    self.pc = data as u16;
+  }
+
+   // The effect of ei is delayed by one instruction. This means that ei followed immediately by di does not allow any interrupts between them. This interacts with the halt bug in an interesting way.
+
+   pub fn di(&mut self) { self.ime = false; }
+   pub fn ei(&mut self) { self.ime_to_set = true; }
 }

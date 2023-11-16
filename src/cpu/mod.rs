@@ -1,7 +1,8 @@
 #![allow(dead_code)]
-use crate::definitions::{PC_INIT, SP_INIT};
+
+use crate::{definitions::{PC_INIT, SP_INIT, WRAM_START}, mmu::MMU};
 use bitflags::bitflags;
-use optable::OPTABLE;
+use optable::{OPTABLE, CB_OPTABLE};
 
 mod addressing;
 mod instructions;
@@ -18,7 +19,7 @@ bitflags! {
 }
 
 impl Flags {
-  pub fn new(value: u8) -> Self { Flags::from_bits_truncate(value) }
+  pub fn new(value: u8) -> Self { Self::from_bits_truncate(value) }
 }
 
 pub struct CPU {
@@ -30,14 +31,16 @@ pub struct CPU {
   pub e: u8,
   pub h: u8,
   pub l: u8,
+  pub ime: bool,
+  pub ime_to_set: bool,
 
   pub sp: u16,
   pub pc: u16,
-  pub ram: [u8; 1024],
+  pub memory: MMU,
 }
 
 impl CPU {
-  pub fn new() -> Self {
+  pub fn new(memory: MMU) -> Self {
     CPU {
       a: 0,
       f: Flags::new(0),
@@ -49,7 +52,9 @@ impl CPU {
       l: 0,
       sp: PC_INIT,
       pc: SP_INIT,
-      ram: [0; 1024],
+      ime: false,
+      ime_to_set: false,
+      memory,
     }
   }
 
@@ -109,10 +114,10 @@ impl CPU {
   }
 
   pub fn mem_read(&self, addr: u16) -> u8 {
-    self.ram[addr as usize]
+    self.memory.mem_read(addr)
   }
   pub fn mem_write(&mut self, addr: u16, data: u8) {
-    self.ram[addr as usize] = data;
+    self.memory.mem_write(addr, data);
   }
   
   pub fn mem_read_16(&self, addr: u16) -> u16 {
@@ -140,31 +145,48 @@ impl CPU {
   }
 
   pub fn load_and_run(&mut self, program: Vec<u8>) {
-    self.load(program);
+    self.load_to_ram(program);
     self.run();
   }
 
-  pub fn load(&mut self, program: Vec<u8>) {
-    self.ram[0 .. program.len()].copy_from_slice(&program);
-    self.pc = 0;
+  pub fn load_to_ram(&mut self, program: Vec<u8>) {
+    self.memory.ram[0 .. program.len()].copy_from_slice(&program);
+    self.pc = WRAM_START;
   }
 
   pub fn run(&mut self) {
     loop {
-      let code = self.ram[self.pc as usize];
-      let opcode = OPTABLE.get(&code).unwrap();
-      println!("[Running]: {:x}, {:?}", code, opcode);
-      self.pc += 1;
-      let pc_state = self.pc;
-
-      if let Err(s) = self.decode(opcode) {
-        println!("Error {} decoding instruction {:x}", s, code);
+      if let Err(s) = self.step() {
+        println!("{s}");
         break;
       };
-
-      if pc_state == self.pc {
-        self.pc += opcode.bytes as u16;
-      }
     }
+  } 
+
+  pub fn step(&mut self) -> Result<(), &'static str> {
+    let code = self.memory.mem_read(self.pc);
+
+    let opcode = if code == 0xCB {
+      self.pc = self.pc.wrapping_add(1);
+      let code = self.memory.mem_read(self.pc);
+      CB_OPTABLE.get(&code).unwrap()
+    } else { OPTABLE.get(&code).unwrap() };
+
+    self.pc = self.pc.wrapping_add(1);
+    let pc_state = self.pc;
+
+    let second = self.mem_read(self.pc); 
+    let third =  self.mem_read(self.pc.wrapping_add(1));
+    println!("[Running]: {:#06x}: {},\t({:#04x}, {:#04x}, {:#04x})", self.pc.wrapping_sub(1),opcode.name, code, second, third);
+
+    if let Err(s) = self.decode(opcode) {
+      return Err(s);
+    };
+
+    if pc_state == self.pc {
+      self.pc = self.pc.wrapping_add(opcode.bytes as u16 - (if code == 0xCB { 2 } else { 1 }));
+    }
+
+    Ok(())
   }
 }

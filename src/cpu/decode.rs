@@ -3,9 +3,9 @@ use super::{addressing::Opcode, CPU};
 impl CPU {
   pub fn decode(&mut self, opcode: &Opcode) -> Result<(), &'static str> {
     let operands = &opcode.operands;
-    
+
     match opcode.code {
-      0x00 => return Err("NOP"),
+      0x00 => (),
       0x10 => todo!("STOP"),
       0x76 => todo!("HALT"),
 
@@ -38,7 +38,7 @@ impl CPU {
       0x0F => self.rrca(), 
       0x1F => self.rra(),
 
-      0x27 => todo!("DAA"),
+      0x27 => self.daa(),
       0x2F => self.cpl(),
       0x37 => self.scf(),
       0x3F => self.ccf(),
@@ -64,12 +64,12 @@ impl CPU {
       0xC9 => self.ret(),
       0xC0 | 0xC8 | 0xD0 | 0xD8 => self.retc(&operands[0]),
 
-      0xC7 | 0xCF | 0xD7 | 0xDF | 0xE7 | 0xEF | 0xF7 | 0xFF => todo!("rst"),
+      0xC7 | 0xCF | 0xD7 | 0xDF | 0xE7 | 0xEF | 0xF7 | 0xFF => self.rst(&operands[0]),
 
-      0xD9 => todo!("reti"),
+      0xD9 => self.reti(),
       
-      0xF3 => todo!("di"),
-      0xFB => todo!("ei"),
+      0xF3 => self.di(),
+      0xFB => self.ei(),
 
       _ => unimplemented!("Unimplemented instruction {:04x}.", opcode.code),
     };
