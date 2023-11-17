@@ -75,22 +75,33 @@ impl CPU {
   pub fn update_zero(&mut self, result: u8) { self.f.set(Flags::ZERO, result == 0); }
 
   pub fn update_carry(&mut self, a: u8, b: u8, c: u8) {
-    let result = a as u16 + b as u16 + c as u16;
+    let result = (a as u16).wrapping_add(b as u16).wrapping_add(c as u16);
+    self.f.set(Flags::CARRY, result > 0xff);
+  }
+
+  pub fn update_carry_sub(&mut self, a: u8, b: u8, c: u8) {
+    let result = (a as u16).wrapping_sub(b as u16).wrapping_sub(c as u16);
     self.f.set(Flags::CARRY, result > 0xff);
   }
 
   pub fn update_carry_16(&mut self, a: u16, b: u16) {
-    let result = a as u32 + b as u32;
+    let result = (a as u32).wrapping_add(b as u32);
     self.f.set(Flags::CARRY, result > 0xffff);
   }
 
   pub fn update_hcarry(&mut self, a: u8, b: u8, c: u8) {
-    let result = (a & 0xf) + (b & 0xf) + (c & 0xf);
+    let result = (a & 0xf).wrapping_add(b & 0xf).wrapping_add(c & 0xf);
     self.f.set(Flags::HCARRY, result > 0xf);
   }
 
+  pub fn update_hcarry_sub(&mut self, a: u8, b: u8, c: u8) {
+    let result = (a & 0xf).wrapping_sub(b & 0xf).wrapping_sub(c & 0xf);
+    self.f.set(Flags::HCARRY, result > 0xf);
+  }
+
+
   pub fn update_hcarry_16(&mut self, a: u16, b: u16) {
-    let result = (a & 0x0fff) + (b & 0x0fff);
+    let result = (a & 0x0fff).wrapping_add(b & 0x0fff);
     self.f.set(Flags::HCARRY, result > 0x0fff);
   }
 
@@ -98,6 +109,12 @@ impl CPU {
     self.update_zero(a.wrapping_add(b).wrapping_add(c));
     self.update_carry(a, b, c);
     self.update_hcarry(a, b, c);
+  }
+
+  pub fn update_zero_and_carries_sub(&mut self, a: u8, b: u8, c: u8) {
+    self.update_zero(a.wrapping_sub(b).wrapping_sub(c));
+    self.update_carry_sub(a, b, c);
+    self.update_hcarry_sub(a, b, c);
   }
 
   pub fn set_hcarry_and_unset_carry(&mut self) {
@@ -135,11 +152,14 @@ impl CPU {
     self.mem_write(addr + 1, high);
   }
 
+
+  // FIXME
   pub fn stack_push(&mut self, data: u16) {
     self.mem_write_16(self.sp.wrapping_sub(2), data);
     self.sp = self.sp.wrapping_sub(2);
   }
 
+  // FIXME
   pub fn stack_pop(&mut self) -> u16 {
     let value = self.mem_read_16(self.sp);
     self.sp = self.sp.wrapping_add(2);
@@ -221,7 +241,7 @@ impl CPU {
       OPTABLE.get(&code).unwrap() 
     };
 
-    self.log_op(opcode);
+    //self.log_op(opcode);
 
     // move pc to first operand, if there are any
     self.pc = self.pc.wrapping_add(1);
@@ -233,6 +253,7 @@ impl CPU {
       self.decode(opcode); 
     }
 
+    // if the op hasn't changed pc, set it to next op address 
     if pc_state == self.pc {
       let head = if code == 0xCB { 2 } else { 1 };
       self.pc = self.pc.wrapping_add(opcode.bytes as u16 - head);
@@ -243,7 +264,7 @@ impl CPU {
     }
 
     if self.mem_read(0xff02) == 0x81{ 
-      eprintln!("{}", self.mem_read(0xff01));
+      eprintln!("{}", self.mem_read(0xff01) as char);
       self.mem_write(0xff02, 0);
     }
 

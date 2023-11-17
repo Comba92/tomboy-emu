@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-  use tomboy_emu::{cpu::{CPU, Flags}, mmu::MMU, definitions::WRAM_START};
-
+  use tomboy_emu::{cpu::CPU, mmu::MMU};
+  
   fn init_cpu() -> CPU {
     let mem = MMU::new(vec![]);
     CPU::new(mem)

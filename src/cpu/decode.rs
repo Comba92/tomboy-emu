@@ -90,8 +90,6 @@ impl CPU {
       0x40 ..= 0x7f => self.bit(&operands[0], &operands[1]),
       0x80 ..= 0xbf => self.res(&operands[0], &operands[1]),
       0xc0 ..= 0xff => self.set(&operands[0], &operands[1]),
-
-      _ => unimplemented!("Unimplemented CB instruction {:04x}.", opcode.code),
     }
   }
 }

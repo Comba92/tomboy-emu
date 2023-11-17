@@ -33,7 +33,7 @@ impl CPU {
   pub fn ldd(&mut self, dst: &Operand, src: &Operand) {
     self.ld(dst, src);
     let hl = self.get_hl();
-    self.set_hl(hl.wrapping_add(1));
+    self.set_hl(hl.wrapping_sub(1));
   }
 
   pub fn push(&mut self, src: &Operand) {
@@ -66,22 +66,22 @@ impl CPU {
   }
 
   pub fn sub(&mut self, src: &Operand) {
-    let data = (self.get_from_source(src) as u8).wrapping_neg();
+    let data = self.get_from_source(src) as u8;
 
     self.f.insert(Flags::SUB);
-    self.update_zero_and_carries(self.a, data, 0);
+    self.update_zero_and_carries_sub(self.a, data, 0);
 
-    self.a = self.a.wrapping_add(data);
+    self.a = self.a.wrapping_sub(data);
   }
 
   pub fn sbc(&mut self, src: &Operand) {
-    let data = (self.get_from_source(src) as u8).wrapping_neg();
-    let carry = self.carry().wrapping_neg();
+    let data = self.get_from_source(src) as u8;
+    let carry = self.carry();
 
     self.f.insert(Flags::SUB);
-    self.update_zero_and_carries(self.a, data, carry);
+    self.update_zero_and_carries_sub(self.a, data, carry);
 
-    self.a = self.a.wrapping_add(data).wrapping_add(carry);
+    self.a = self.a.wrapping_sub(data).wrapping_sub(carry);
   }
 
   pub fn and(&mut self, src: &Operand) {
@@ -91,6 +91,8 @@ impl CPU {
     self.update_zero(result);
     self.f.remove(Flags::SUB);
     self.set_hcarry_and_unset_carry();
+
+    self.a = result;
   }
 
   pub fn xor(&mut self, src: &Operand) {
@@ -100,6 +102,8 @@ impl CPU {
     self.update_zero(result);
     self.f.remove(Flags::SUB);
     self.unset_hcarry_and_carry();
+
+    self.a = result;
   }
 
   pub fn or(&mut self, src: &Operand) {
@@ -109,13 +113,15 @@ impl CPU {
     self.update_zero(result);
     self.f.remove(Flags::SUB);
     self.unset_hcarry_and_carry();
+
+    self.a = result;
   }
 
   pub fn cp(&mut self, src: &Operand) {
-    let data = (self.get_from_source(src) as u8).wrapping_neg();
+    let data = self.get_from_source(src) as u8;
     
     self.f.insert(Flags::SUB);
-    self.update_zero_and_carries(self.a, data, 0);
+    self.update_zero_and_carries_sub(self.a, data, 0);
   }
 
   pub fn inc(&mut self, src: &Operand) {
@@ -138,9 +144,7 @@ impl CPU {
     if !src.is_register_16() {
       self.f.insert(Flags::SUB);
       self.update_zero(result as u8);
-      // self.update_hcarry(data as u8, 1u8.wrapping_neg(), 0);
-      let result = (data & 0xf).wrapping_sub(1 & 0xf);
-      self.f.set(Flags::HCARRY, result > 0xf);
+      self.update_hcarry_sub(data as u8, 1, 0);
     }
 
     self.set_to_destination(src, result);
@@ -176,20 +180,21 @@ impl CPU {
     let mut carry = false;
 
     if self.f.contains(Flags::HCARRY) || 
-      (!self.f.contains(Flags::SUB) && a & 0xf > 0x9) {
-        correction |= 0x6;
+      (!self.f.contains(Flags::SUB) && (a & 0xf) > 0x9) {
+        correction += 0x6;
     }
 
     if self.f.contains(Flags::CARRY) || 
       (!self.f.contains(Flags::SUB) && a > 0x99) {
-        correction |= 0x60;
+        correction += 0x60;
         carry = true;
     }
     
-    let result = 
+    let correction =
       if self.f.contains(Flags::SUB) { correction.wrapping_neg() } 
       else { correction };
-    
+    let result = self.a.wrapping_add(correction);
+
     self.update_zero(result);
     self.f.remove(Flags::HCARRY);
     self.f.set(Flags::CARRY, carry);
@@ -338,7 +343,8 @@ impl CPU {
   }
 
   pub fn call(&mut self, dst: &Operand) {
-    self.stack_push(self.pc);
+    // The program counter points to the next instruction before the current instruction is evaluated. 
+    self.stack_push(self.pc.wrapping_add(2));
     let addr = self.get_from_source(dst);
     self.pc = addr;
   }

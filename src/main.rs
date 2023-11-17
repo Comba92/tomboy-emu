@@ -1,6 +1,5 @@
 use std::env;
 use std::fs;
-use std::time::Duration;
 use sdl2;
 
 use tomboy_emu::mmu::MMU;
@@ -20,6 +19,7 @@ fn main() {
 
   let memory = MMU::new(rom);
   let mut cpu = CPU::new(memory);
+
 
   let sdl_context = sdl2::init().unwrap();
   let video_subsystem = sdl_context.video().unwrap();
