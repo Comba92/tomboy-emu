@@ -23,9 +23,11 @@ pub enum OperandType {
   Literal(LiteralOperand)
 }
 
-impl OperandType {
-  pub fn is_register_16(&self) -> bool { 
-    if let OperandType::Register(reg) = self {
+impl Operand {
+  pub fn is_register_16(&self) -> bool {
+    if !self.immediate { return false }
+
+    if let OperandType::Register(reg) = self.kind {
       match reg {
         RegisterOperand::AF | RegisterOperand::BC | RegisterOperand::DE | RegisterOperand::HL => true,
         _ => false,
@@ -129,7 +131,7 @@ impl CPU {
       OperandType::Literal(lit) => {
         match lit {
           LiteralOperand::n16 | LiteralOperand::a16 =>
-            self.mem_write_16(self.pc, data),
+            self.mem_write(self.pc, data as u8),
           _ => panic!("Impossible to address 8bit literal value.")
         }
       },
@@ -162,6 +164,6 @@ impl CPU {
       _ => panic!("Impossible destination to set.")
     };
 
-    self.mem_write_16(addr, data);
+    self.mem_write(addr, data as u8);
   }
 }

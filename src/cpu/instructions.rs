@@ -5,6 +5,7 @@ const REG_A_OPERAND: Operand = Operand {
   immediate: true,
 };
 
+
 impl CPU {
   pub fn ld(&mut self, dst: &Operand, src: &Operand) {
     let data = self.get_from_source(src);
@@ -24,13 +25,15 @@ impl CPU {
   }
 
   pub fn ldi(&mut self, dst: &Operand, src: &Operand) {
-    let data = self.get_from_source(src).wrapping_add(1);
-    self.set_to_destination(dst, data);
+    self.ld(dst, src);
+    let hl = self.get_hl();
+    self.set_hl(hl.wrapping_add(1));
   }
 
   pub fn ldd(&mut self, dst: &Operand, src: &Operand) {
-    let data = self.get_from_source(src).wrapping_sub(1);
-    self.set_to_destination(dst, data);
+    self.ld(dst, src);
+    let hl = self.get_hl();
+    self.set_hl(hl.wrapping_add(1));
   }
 
   pub fn push(&mut self, src: &Operand) {
@@ -119,7 +122,7 @@ impl CPU {
     let data = self.get_from_source(src);
     let result = data.wrapping_add(1);
 
-    if !src.kind.is_register_16() {
+    if !src.is_register_16() {
       self.f.remove(Flags::SUB);
       self.update_zero(result as u8);
       self.update_hcarry(data as u8, 1, 0);
@@ -132,10 +135,12 @@ impl CPU {
     let data = self.get_from_source(src);
     let result = data.wrapping_sub(1);
 
-    if !src.kind.is_register_16() {
+    if !src.is_register_16() {
       self.f.insert(Flags::SUB);
       self.update_zero(result as u8);
-      self.update_hcarry(data as u8, 1u8.wrapping_neg(), 0);
+      // self.update_hcarry(data as u8, 1u8.wrapping_neg(), 0);
+      let result = (data & 0xf).wrapping_sub(1 & 0xf);
+      self.f.set(Flags::HCARRY, result > 0xf);
     }
 
     self.set_to_destination(src, result);
@@ -319,7 +324,10 @@ impl CPU {
 
   pub fn jr(&mut self, dst: &Operand) {
     let addr = self.get_from_source(dst) as i8;
-    self.pc = self.pc.wrapping_add_signed(addr as i16);
+    self.pc = self.pc
+      // The program counter points to the next instruction before the current instruction is evaluated. 
+      .wrapping_add(1)
+      .wrapping_add_signed(addr as i16);
   }
 
   pub fn jrc(&mut self, cond: &Operand, dst: &Operand) {

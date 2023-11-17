@@ -31,8 +31,7 @@ pub struct MMU {
   hram: [u8; 128],
   ie_reg: InterruptRegister,
   if_reg: InterruptRegister,
-  sb_reg: u8,
-  sc_reg: u8,
+  io_regs: [u8; 128],
 }
 
 impl MMU {
@@ -40,11 +39,10 @@ impl MMU {
     MMU {
       ram: [0; 1024 * 8],
       hram: [0; 128],
+      io_regs: [0; 128],
       rom,
       ie_reg: InterruptRegister::new(0),
       if_reg: InterruptRegister::new(0),
-      sb_reg: 0,
-      sc_reg: 0,
     }
   }
 
@@ -52,8 +50,6 @@ impl MMU {
     match addr {
       0xff0f => self.if_reg.bits(),
       0xffff => self.ie_reg.bits(),
-      0xff01 => self.sb_reg,
-      0xff02 => self.sc_reg,
 
       // required by gameboy doctor
       0xff44 => 0x90,
@@ -62,7 +58,7 @@ impl MMU {
       VRAM_START ..= VRAM_END => { eprintln!("VRAM address range not implemented."); 0 },
       EXT_RAM_START ..= EXT_RAM_END => { eprintln!("EXT RAM address range not implemented."); 0 },
       WRAM_START ..= WRAM_END => self.ram[(addr - WRAM_START) as usize],
-      IO_REGISTERS_START ..= IO_REGISTERS_END => { eprintln!("IO Registers address range not implemented."); 0 },
+      IO_REGISTERS_START ..= IO_REGISTERS_END => self.io_regs[(addr -  IO_REGISTERS_START) as usize],
       HRAM_START ..= HRAM_END => self.hram[(addr - HRAM_START) as usize],
 
       _ => { eprintln!("Addressing not implemented for address {addr:#04x}"); 0 }
@@ -74,14 +70,12 @@ impl MMU {
     match addr {
       0xff0f => self.if_reg = InterruptRegister::new(data),
       0xffff => self.ie_reg = InterruptRegister::new(data),
-      0xff01 => self.sb_reg = data,
-      0xff02 => self.sc_reg = data,
 
       ROM_START ..= ROM_END => panic!("Trying to write ROM memory at {addr:#04x}."),
       VRAM_START ..= VRAM_END => eprintln!("VRAM address range not implemented."),
       EXT_RAM_START ..= EXT_RAM_END => eprintln!("EXT RAM address range not implemented."),
       WRAM_START ..= WRAM_END => self.ram[(addr - WRAM_START) as usize] = data,
-      IO_REGISTERS_START ..= IO_REGISTERS_END => eprintln!("IO Registers address range not implemented."),
+      IO_REGISTERS_START ..= IO_REGISTERS_END => self.io_regs[(addr -  IO_REGISTERS_START) as usize] = data,
       HRAM_START ..= HRAM_END => self.hram[(addr - HRAM_START) as usize] = data,
 
       _ => { eprintln!("Addressing not implemented for address {addr:#04x}"); }

@@ -4,6 +4,8 @@ use crate::{definitions::*, mmu::{MMU, InterruptRegister}};
 use bitflags::bitflags;
 use optable::{OPTABLE, CB_OPTABLE};
 
+use self::addressing::Opcode;
+
 mod addressing;
 mod instructions;
 mod decode;
@@ -83,8 +85,8 @@ impl CPU {
   }
 
   pub fn update_hcarry(&mut self, a: u8, b: u8, c: u8) {
-    let result = (a & 0x0f) + (b & 0x0f) + (c & 0x0f);
-    self.f.set(Flags::HCARRY, result > 0x0f);
+    let result = (a & 0xf) + (b & 0xf) + (c & 0xf);
+    self.f.set(Flags::HCARRY, result > 0xf);
   }
 
   pub fn update_hcarry_16(&mut self, a: u16, b: u16) {
@@ -198,12 +200,18 @@ impl CPU {
   }
 
   pub fn run(&mut self) {
-    loop { self.step(); }
+    loop { 
+      if !self.step() {
+        break;
+      }  
+    }
   } 
 
-  pub fn step(&mut self) {
+  pub fn step(&mut self) -> bool {
     self.log_trace();
     let code = self.memory.mem_read(self.pc);
+
+    if code == 0x10 { return false };
 
     let opcode = if code == 0xCB {
       self.pc = self.pc.wrapping_add(1);
@@ -213,13 +221,11 @@ impl CPU {
       OPTABLE.get(&code).unwrap() 
     };
 
+    self.log_op(opcode);
+
     // move pc to first operand, if there are any
     self.pc = self.pc.wrapping_add(1);
     let pc_state = self.pc;
-
-    let second = self.mem_read(self.pc); 
-    let third =  self.mem_read(self.pc.wrapping_add(1));
-    eprintln!("[Running]: {:#06x}: {},\t({:#04x}, {:#04x}, {:#04x})", self.pc.wrapping_sub(1),opcode.name, code, second, third);
 
     if code == 0xCB {
       self.cb_decode(opcode);
@@ -245,6 +251,8 @@ impl CPU {
       self.ime_to_set = false;
       self.ime = true;
     }
+
+    true
   }
 
   pub fn log_trace(&self) {
@@ -253,5 +261,11 @@ impl CPU {
       self.a, self.f.bits(), self.b, self.c, self.d, self.e, self.h, self.l, self.sp, self.pc,
       self.mem_read(self.pc), self.mem_read(self.pc+1), self.mem_read(self.pc+2), self.mem_read(self.pc+3),
     )
+  }
+
+  pub fn log_op(&self, opcode: &Opcode) {
+    let second = self.mem_read(self.pc); 
+    let third =  self.mem_read(self.pc.wrapping_add(1));
+    eprintln!("[Running]: {:#06x}: {},\t({:#04x}, {:#04x}, {:#04x})", self.pc.wrapping_sub(1), opcode.name, opcode.code, second, third);
   }
 }
