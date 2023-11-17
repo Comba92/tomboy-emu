@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::{definitions::{PC_INIT, SP_INIT, WRAM_START, INTERRUPT_ENABLE, INTERRUPT_FLAG}, mmu::{MMU, InterruptRegister}};
+use crate::{definitions::*, mmu::{MMU, InterruptRegister}};
 use bitflags::bitflags;
 use optable::{OPTABLE, CB_OPTABLE};
 
@@ -42,16 +42,16 @@ pub struct CPU {
 impl CPU {
   pub fn new(memory: MMU) -> Self {
     CPU {
-      a: 0,
-      f: Flags::new(0),
-      b: 0,
-      c: 0,
-      d: 0,
-      e: 0,
-      h: 0,
-      l: 0,
-      sp: PC_INIT,
-      pc: SP_INIT,
+      a: A_INIT,
+      f: Flags::new(F_INIT),
+      b: B_INIT,
+      c: C_INIT,
+      d: D_INIT,
+      e: E_INIT,
+      h: H_INIT,
+      l: L_INIT,
+      sp: SP_INIT,
+      pc: PC_INIT,
       ime: false,
       ime_to_set: false,
       memory,
@@ -152,20 +152,39 @@ impl CPU {
     InterruptRegister::new( self.mem_read(INTERRUPT_FLAG) )
   }
 
+  pub fn set_if(&mut self, int: InterruptRegister) {
+    self.mem_write(INTERRUPT_FLAG, int.bits());
+  }
+
   pub fn handle_interrupts(&mut self) {
-    let if_reg = self.get_if();
+    let mut if_reg = self.get_if();
     let ie_reg = self.get_ie();
 
     if if_reg.is_empty() || ie_reg.is_empty() {
       return;
-    } 
+    }
       
     for (_, interrupt) in if_reg.iter_names() {
       if ie_reg.contains(interrupt) {
         self.ime = false;
+        if_reg.remove(interrupt);
+        self.set_if(interrupt);
+        self.interrupt_call(interrupt);
+        break;
       }
     }
-    
+  }
+
+  pub fn interrupt_call(&mut self, int: InterruptRegister) {
+    self.stack_push(self.pc);
+    match int {
+      InterruptRegister::VBLANK => {},
+      InterruptRegister::LCD => {},
+      InterruptRegister::TIMER => {},
+      InterruptRegister::SERIAL => self.pc = 0x58,
+      InterruptRegister::JOYPAD => {},
+      _ => {}
+    }
   }
 
   pub fn load_and_run(&mut self, program: Vec<u8>) {
@@ -179,12 +198,11 @@ impl CPU {
   }
 
   pub fn run(&mut self) {
-    loop {
-      self.step();
-    }
+    loop { self.step(); }
   } 
 
   pub fn step(&mut self) {
+    self.log_trace();
     let code = self.memory.mem_read(self.pc);
 
     let opcode = if code == 0xCB {
@@ -201,8 +219,7 @@ impl CPU {
 
     let second = self.mem_read(self.pc); 
     let third =  self.mem_read(self.pc.wrapping_add(1));
-    println!("[Running]: {:#06x}: {},\t({:#04x}, {:#04x}, {:#04x})", self.pc.wrapping_sub(1),opcode.name, code, second, third);
-
+    eprintln!("[Running]: {:#06x}: {},\t({:#04x}, {:#04x}, {:#04x})", self.pc.wrapping_sub(1),opcode.name, code, second, third);
 
     if code == 0xCB {
       self.cb_decode(opcode);
@@ -219,8 +236,22 @@ impl CPU {
       self.handle_interrupts();
     }
 
+    if self.mem_read(0xff02) == 0x81{ 
+      eprintln!("{}", self.mem_read(0xff01));
+      self.mem_write(0xff02, 0);
+    }
+
     if self.ime_to_set {
+      self.ime_to_set = false;
       self.ime = true;
     }
+  }
+
+  pub fn log_trace(&self) {
+    println!(
+      "A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}",
+      self.a, self.f.bits(), self.b, self.c, self.d, self.e, self.h, self.l, self.sp, self.pc,
+      self.mem_read(self.pc), self.mem_read(self.pc+1), self.mem_read(self.pc+2), self.mem_read(self.pc+3),
+    )
   }
 }

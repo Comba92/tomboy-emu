@@ -1,7 +1,7 @@
 use super::{CPU, addressing::{Operand, OperandType, RegisterOperand}, Flags};
 
 const REG_A_OPERAND: Operand = Operand { 
-  kind:OperandType::Register(RegisterOperand::A), 
+  kind: OperandType::Register(RegisterOperand::A), 
   immediate: true,
 };
 

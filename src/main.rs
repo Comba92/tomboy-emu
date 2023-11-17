@@ -47,6 +47,6 @@ fn main() {
     cpu.step();
     
     canvas.present();
-    std::thread::sleep(Duration::from_millis(100));
+    std::thread::sleep(Duration::from_millis(10));
   }
 }
