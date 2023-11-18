@@ -1,6 +1,6 @@
 #!/bin/bash
 NUM=$1
-NAME=$2
-cargo run "gb-test-roms/cpu_instrs/individual/$NAME" > "$NUM-results.txt" 2>$NUM-trace.txt
+cargo run "test_roms/$NUM.gb" > "logs/$NUM-results.txt" off 2>"logs/$NUM-trace.txt"
+
 cd gameboy-doctor/
-python gameboy-doctor "../$NUM-results.txt" cpu_instrs $NUM
+python gameboy-doctor "../logs/$NUM-results.txt" cpu_instrs $NUM

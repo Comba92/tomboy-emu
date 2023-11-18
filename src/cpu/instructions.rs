@@ -9,10 +9,15 @@ const REG_A_OPERAND: Operand = Operand {
 impl CPU {
   pub fn ld(&mut self, dst: &Operand, src: &Operand) {
     let data = self.get_from_source(src);
-    self.set_to_destination(dst, data);
+
+    if dst.is_register_16() {
+      self.set_to_destination_16(dst, data);
+    } else {
+      self.set_to_destination(dst, data as u8);
+    }
   }
 
-  pub fn ld_sp_rel(&mut self, offset: &Operand) {
+  pub fn ld_sp_sign(&mut self, offset: &Operand) {
     let data = (self.get_from_source(offset) as i8) as i16;
     let result = self.sp.wrapping_add_signed(data);
 
@@ -43,11 +48,11 @@ impl CPU {
 
   pub fn pop(&mut self, dst: &Operand) {
     let data = self.stack_pop();
-    self.set_to_destination(dst, data);
+    self.set_to_destination_16(dst, data);
   }
 
-  pub fn add(&mut self, src: &Operand) {
-    let data = self.get_from_source(src) as u8;
+  pub fn add(&mut self, dst: &Operand) {
+    let data = self.get_from_source(dst) as u8;
 
     self.f.remove(Flags::SUB);
     self.update_zero_and_carries(self.a, data, 0);
@@ -55,8 +60,8 @@ impl CPU {
     self.a = self.a.wrapping_add(data);
   }
 
-  pub fn adc(&mut self, src: &Operand) {
-    let data = self.get_from_source(src) as u8;
+  pub fn adc(&mut self, dst: &Operand) {
+    let data = self.get_from_source(dst) as u8;
     let carry = self.carry();
 
     self.f.remove(Flags::SUB);
@@ -65,8 +70,8 @@ impl CPU {
     self.a = self.a.wrapping_add(data).wrapping_add(carry);
   }
 
-  pub fn sub(&mut self, src: &Operand) {
-    let data = self.get_from_source(src) as u8;
+  pub fn sub(&mut self, dst: &Operand) {
+    let data = self.get_from_source(dst) as u8;
 
     self.f.insert(Flags::SUB);
     self.update_zero_and_carries_sub(self.a, data, 0);
@@ -74,8 +79,8 @@ impl CPU {
     self.a = self.a.wrapping_sub(data);
   }
 
-  pub fn sbc(&mut self, src: &Operand) {
-    let data = self.get_from_source(src) as u8;
+  pub fn sbc(&mut self, dst: &Operand) {
+    let data = self.get_from_source(dst) as u8;
     let carry = self.carry();
 
     self.f.insert(Flags::SUB);
@@ -84,8 +89,8 @@ impl CPU {
     self.a = self.a.wrapping_sub(data).wrapping_sub(carry);
   }
 
-  pub fn and(&mut self, src: &Operand) {
-    let data = self.get_from_source(src) as u8;
+  pub fn and(&mut self, dst: &Operand) {
+    let data = self.get_from_source(dst) as u8;
     let result = self.a & data;
 
     self.update_zero(result);
@@ -95,8 +100,8 @@ impl CPU {
     self.a = result;
   }
 
-  pub fn xor(&mut self, src: &Operand) {
-    let data = self.get_from_source(src) as u8;
+  pub fn xor(&mut self, dst: &Operand) {
+    let data = self.get_from_source(dst) as u8;
     let result = self.a ^ data;
 
     self.update_zero(result);
@@ -106,8 +111,8 @@ impl CPU {
     self.a = result;
   }
 
-  pub fn or(&mut self, src: &Operand) {
-    let data = self.get_from_source(src) as u8;
+  pub fn or(&mut self, dst: &Operand) {
+    let data = self.get_from_source(dst) as u8;
     let result = self.a | data;
 
     self.update_zero(result);
@@ -124,30 +129,34 @@ impl CPU {
     self.update_zero_and_carries_sub(self.a, data, 0);
   }
 
-  pub fn inc(&mut self, src: &Operand) {
-    let data = self.get_from_source(src);
+  pub fn inc(&mut self, dst: &Operand) {
+    let data = self.get_from_source(dst);
     let result = data.wrapping_add(1);
 
-    if !src.is_register_16() {
+    if dst.is_register_16() {
+      self.set_to_destination_16(dst, result);
+    } else {
       self.f.remove(Flags::SUB);
       self.update_zero(result as u8);
       self.update_hcarry(data as u8, 1, 0);
-    }
 
-    self.set_to_destination(src, result);
+      self.set_to_destination(dst, result as u8);
+    }
   }
 
-  pub fn dec(&mut self, src: &Operand) {
-    let data = self.get_from_source(src);
+  pub fn dec(&mut self, dst: &Operand) {
+    let data = self.get_from_source(dst);
     let result = data.wrapping_sub(1);
 
-    if !src.is_register_16() {
+    if dst.is_register_16() {
+      self.set_to_destination_16(dst, result);
+    } else {
       self.f.insert(Flags::SUB);
       self.update_zero(result as u8);
       self.update_hcarry_sub(data as u8, 1, 0);
-    }
 
-    self.set_to_destination(src, result);
+      self.set_to_destination(dst, result as u8);
+    }
   }
 
   pub fn add_16(&mut self, src: &Operand) {
@@ -161,7 +170,7 @@ impl CPU {
     self.update_carry_16(hl, data);
   }
 
-  pub fn add_sp_rel(&mut self, offset: &Operand) {
+  pub fn add_sp_sign(&mut self, offset: &Operand) {
     let data = (self.get_from_source(offset) as i8) as i16;
     let result = self.sp.wrapping_add_signed(data);
 
@@ -203,7 +212,7 @@ impl CPU {
   }
 
   pub fn rlc(&mut self, src: &Operand) {
-    let data = self.get_from_source(src);
+    let data = self.get_from_source(src) as u8;
     let carry = data >> 7;
     let result = (data << 1) | carry;
     self.set_to_destination(src, result);
@@ -217,9 +226,9 @@ impl CPU {
   }
   
   pub fn rrc(&mut self, src: &Operand) {
-    let data = self.get_from_source(src);
-    let carry = data << 7;
-    let result = (data >> 1) | carry;
+    let data = self.get_from_source(src) as u8;
+    let carry = data & 1;
+    let result = (data >> 1) | (carry << 7);
     self.set_to_destination(src, result);
 
     self.update_flags_after_rotation(result, carry);
@@ -231,8 +240,8 @@ impl CPU {
   }
 
   pub fn rl(&mut self, src: &Operand) {
-    let data = self.get_from_source(src);
-    let carry = self.carry() as u16;
+    let data = self.get_from_source(src) as u8;
+    let carry = self.carry();
     let bit = data >> 7;
     let result = (data << 1) | carry;
     self.set_to_destination(src, result);
@@ -246,8 +255,8 @@ impl CPU {
   }
 
   pub fn rr(&mut self, src: &Operand) {
-    let data = self.get_from_source(src);
-    let carry = self.carry() as u16;
+    let data = self.get_from_source(src) as u8;
+    let carry = self.carry();
     let bit = data & 1;
     let result = (data >> 1) | (carry << 7);
     self.set_to_destination(src, result);
@@ -261,7 +270,7 @@ impl CPU {
   }
 
   pub fn sla(&mut self, src: &Operand) {
-    let data = self.get_from_source(src);
+    let data = self.get_from_source(src) as u8;
     let bit = data >> 7;
     let result = data << 1;
     self.set_to_destination(src, result);
@@ -270,17 +279,17 @@ impl CPU {
   }
 
   pub fn sra(&mut self, src: &Operand) {
-    let data = self.get_from_source(src);
+    let data = self.get_from_source(src) as u8;
     let bit = data & 1;
-    let last = data & 0x80;
-    let result = data >> 1 | (last << 7);
+    let last = data & 0b1000_0000;
+    let result = data >> 1 | last;
     self.set_to_destination(src, result);
 
     self.update_flags_after_rotation(result, bit); 
   }
 
   pub fn srl(&mut self, src: &Operand) {
-    let data = self.get_from_source(src);
+    let data = self.get_from_source(src) as u8; 
     let bit = data & 1;
     let result = data >> 1;
     self.set_to_destination(src, result);
@@ -289,9 +298,10 @@ impl CPU {
   }
 
   pub fn swap(&mut self, src: &Operand) {
-    let data = self.get_from_source(src);
-    let [high, low] = data.to_be_bytes();
-    let result = u16::from_be_bytes([low, high]);
+    let data = self.get_from_source(src) as u8;
+    let low = data & 0x0f;
+    let high = data >> 4;
+    let result = (low << 4) | high;
     self.set_to_destination(src, result);
 
     self.update_flags_after_rotation(result, 0);
@@ -394,16 +404,16 @@ impl CPU {
   }
 
   pub fn set(&mut self, bit: &Operand, src: &Operand) {
-    let pos = self.get_from_source(bit);
-    let data = self.get_from_source(src);
+    let pos = self.get_from_source(bit) as u8;
+    let data = self.get_from_source(src) as u8;
 
     let result = data | (1 << pos);
     self.set_to_destination(src, result);
   }
 
   pub fn res(&mut self, bit: &Operand, src: &Operand) {
-    let pos = self.get_from_source(bit);
-    let data = self.get_from_source(src);
+    let pos = self.get_from_source(bit) as u8;
+    let data = self.get_from_source(src) as u8;
 
     let result = data & !(1 << pos);
     self.set_to_destination(src, result);

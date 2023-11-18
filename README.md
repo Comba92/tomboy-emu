@@ -12,7 +12,7 @@
 - **Memory Map** - http://gameboy.mongenel.com/dmg/asmmemmap.html
 
 
-- **BinjGB** - https://github.com/nba-emu/NanoBoyAdvance
+- **BinjGB** - https://github.com/binji/binjgb
 - **PyBoy** - https://github.com/Baekalfen/PyBoy/tree/master
 - **MooneyeGB** - https://github.com/Gekkio/mooneye-gb
 - **Boytacean (Rust)** - https://github.com/joamag/boytacean

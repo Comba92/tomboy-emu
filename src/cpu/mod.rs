@@ -125,8 +125,8 @@ impl CPU {
     self.f.remove(Flags::HCARRY);
     self.f.remove(Flags::CARRY);
   }
-  pub fn update_flags_after_rotation(&mut self, result: u16, bit: u16) {
-    self.update_zero(result as u8);
+  pub fn update_flags_after_rotation(&mut self, result: u8, bit: u8) {
+    self.update_zero(result);
     self.f.remove(Flags::SUB);
     self.f.remove(Flags::HCARRY);
     self.f.set(Flags::CARRY, bit != 0);
@@ -153,13 +153,11 @@ impl CPU {
   }
 
 
-  // FIXME
   pub fn stack_push(&mut self, data: u16) {
     self.mem_write_16(self.sp.wrapping_sub(2), data);
     self.sp = self.sp.wrapping_sub(2);
   }
 
-  // FIXME
   pub fn stack_pop(&mut self) -> u16 {
     let value = self.mem_read_16(self.sp);
     self.sp = self.sp.wrapping_add(2);
@@ -178,7 +176,7 @@ impl CPU {
     self.mem_write(INTERRUPT_FLAG, int.bits());
   }
 
-  pub fn handle_interrupts(&mut self) {
+  pub fn interrupts_handle(&mut self) {
     let mut if_reg = self.get_if();
     let ie_reg = self.get_ie();
 
@@ -200,11 +198,11 @@ impl CPU {
   pub fn interrupt_call(&mut self, int: InterruptRegister) {
     self.stack_push(self.pc);
     match int {
-      InterruptRegister::VBLANK => {},
-      InterruptRegister::LCD => {},
-      InterruptRegister::TIMER => {},
+      InterruptRegister::VBLANK => self.pc = 0x40,
+      InterruptRegister::LCD => self.pc = 0x48,
+      InterruptRegister::TIMER => self.pc = 0x50,
       InterruptRegister::SERIAL => self.pc = 0x58,
-      InterruptRegister::JOYPAD => {},
+      InterruptRegister::JOYPAD => self.pc = 0x60,
       _ => {}
     }
   }
@@ -241,11 +239,11 @@ impl CPU {
       OPTABLE.get(&code).unwrap() 
     };
 
-    //self.log_op(opcode);
-
     // move pc to first operand, if there are any
     self.pc = self.pc.wrapping_add(1);
     let pc_state = self.pc;
+
+    //self.log_op(opcode);
 
     if code == 0xCB {
       self.cb_decode(opcode);
@@ -260,7 +258,7 @@ impl CPU {
     }
 
     if self.ime {
-      self.handle_interrupts();
+      self.interrupts_handle();
     }
 
     if self.mem_read(0xff02) == 0x81{ 
@@ -287,6 +285,6 @@ impl CPU {
   pub fn log_op(&self, opcode: &Opcode) {
     let second = self.mem_read(self.pc); 
     let third =  self.mem_read(self.pc.wrapping_add(1));
-    eprintln!("[Running]: {:#06x}: {},\t({:#04x}, {:#04x}, {:#04x})", self.pc.wrapping_sub(1), opcode.name, opcode.code, second, third);
+    eprintln!("[Running] {:#06x}: {},\t({:#04x}, {:#04x}, {:#04x})", self.pc.wrapping_sub(1), opcode.name, opcode.code, second, third);
   }
 }

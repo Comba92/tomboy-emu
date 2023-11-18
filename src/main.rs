@@ -13,6 +13,7 @@ fn main() {
     std::process::exit(1);
   }
 
+
   let rom_path = &args[1];
   let rom = fs::read(rom_path)
     .expect("Error reading the file.");
@@ -20,6 +21,16 @@ fn main() {
   let memory = MMU::new(rom);
   let mut cpu = CPU::new(memory);
 
+
+  let now = std::time::SystemTime::now();
+  if args.len() > 1 {
+    loop {
+      if now.elapsed().unwrap() > std::time::Duration::from_secs(60) {
+        std::process::exit(0);
+      } 
+      cpu.step(); 
+    }
+  }
 
   let sdl_context = sdl2::init().unwrap();
   let video_subsystem = sdl_context.video().unwrap();

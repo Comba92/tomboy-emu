@@ -3,6 +3,8 @@
 .vscode
 .old
 roms
+test_roms
+logs
 gb-test-roms
 gameboy-doctor
 *.txt

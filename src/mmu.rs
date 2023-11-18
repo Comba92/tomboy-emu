@@ -55,7 +55,7 @@ impl MMU {
       0xff44 => 0x90,
 
       ROM_START ..= ROM_END => self.rom[addr as usize],
-      VRAM_START ..= VRAM_END => { eprintln!("VRAM address range not implemented."); 0 },
+      VRAM_START ..= VRAM_END => { 0 },
       EXT_RAM_START ..= EXT_RAM_END => { eprintln!("EXT RAM address range not implemented."); 0 },
       WRAM_START ..= WRAM_END => self.ram[(addr - WRAM_START) as usize],
       IO_REGISTERS_START ..= IO_REGISTERS_END => self.io_regs[(addr -  IO_REGISTERS_START) as usize],
@@ -72,7 +72,7 @@ impl MMU {
       0xffff => self.ie_reg = InterruptRegister::new(data),
 
       ROM_START ..= ROM_END => panic!("Trying to write ROM memory at {addr:#04x}."),
-      VRAM_START ..= VRAM_END => eprintln!("VRAM address range not implemented."),
+      VRAM_START ..= VRAM_END => {},
       EXT_RAM_START ..= EXT_RAM_END => eprintln!("EXT RAM address range not implemented."),
       WRAM_START ..= WRAM_END => self.ram[(addr - WRAM_START) as usize] = data,
       IO_REGISTERS_START ..= IO_REGISTERS_END => self.io_regs[(addr -  IO_REGISTERS_START) as usize] = data,

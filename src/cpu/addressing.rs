@@ -29,7 +29,7 @@ impl Operand {
 
     if let OperandType::Register(reg) = self.kind {
       match reg {
-        RegisterOperand::AF | RegisterOperand::BC | RegisterOperand::DE | RegisterOperand::HL => true,
+        RegisterOperand::AF | RegisterOperand::BC | RegisterOperand::DE | RegisterOperand::HL | RegisterOperand::SP => true,
         _ => false,
       }
     } else { false }
@@ -89,7 +89,7 @@ impl CPU {
             self.mem_read(self.pc) as u16,
 
           LiteralOperand::a8 => 
-            0xFF00 + self.mem_read(self.pc) as u16,
+            u16::from_be_bytes([0xff, self.mem_read(self.pc)]), 
 
           LiteralOperand::n16 | LiteralOperand::a16 => 
             self.mem_read_16(self.pc),
@@ -98,16 +98,15 @@ impl CPU {
     };
 
     if src.immediate { data_to_get }
-    else { self.mem_read_16(data_to_get) }
+    else { self.mem_read(data_to_get) as u16 }
   }
 
-
-  pub(super) fn set_to_destination(&mut self, dst: &Operand, data: u16) {
+  pub(super) fn set_to_destination(&mut self, dst: &Operand, data: u8) {
     if dst.immediate { self.set_to_destination_direct(dst, data); }
     else { self.set_to_destination_indirect(dst, data); }
   }
 
-  fn set_to_destination_direct(&mut self, dst: &Operand, data: u16) {
+  fn set_to_destination_direct(&mut self, dst: &Operand, data: u8) {
     match dst.kind {
       OperandType::Register(reg) => {
         match reg {
@@ -119,19 +118,16 @@ impl CPU {
           RegisterOperand::F => self.f = Flags::from_bits_truncate(data as u8),
           RegisterOperand::H => self.h = data as u8,
           RegisterOperand::L => self.l = data as u8,
-
-          RegisterOperand::AF => self.set_af(data),
-          RegisterOperand::BC => self.set_bc(data),
-          RegisterOperand::DE => self.set_de(data),
-          RegisterOperand::HL => self.set_hl(data),
-          RegisterOperand::SP => self.sp = data
+          _ => panic!("Impossible to set 8bit literal value in 16bit register.")
         }
       },
 
       OperandType::Literal(lit) => {
         match lit {
-          LiteralOperand::n16 | LiteralOperand::a16 =>
-            self.mem_write(self.pc, data as u8),
+          LiteralOperand::a16 => {
+            let addr = self.mem_read_16(self.pc);
+            self.mem_write(addr, data as u8);
+          }
           _ => panic!("Impossible to address 8bit literal value.")
         }
       },
@@ -140,7 +136,7 @@ impl CPU {
     };
   }
 
-  fn set_to_destination_indirect(&mut self, dst: &Operand, data: u16) {
+  fn set_to_destination_indirect(&mut self, dst: &Operand, data: u8) {
     let addr = match dst.kind {
       OperandType::Register(reg) => {
         match reg {
@@ -154,9 +150,13 @@ impl CPU {
 
       OperandType::Literal(lit) => {
         match lit {
-          LiteralOperand::a8 => 0xFF00 + self.mem_read(self.pc) as u16,
-          LiteralOperand::n16 | LiteralOperand::a16 =>
-            self.mem_read_16(self.pc),
+          LiteralOperand::a8 => {
+            u16::from_be_bytes( [0xff, self.mem_read(self.pc)] )
+          }
+          LiteralOperand::a16 => {
+            self.mem_read_16(self.pc)
+          }
+
           _ => panic!("Impossible to address 8bit literal value.")
         } 
       },
@@ -164,6 +164,33 @@ impl CPU {
       _ => panic!("Impossible destination to set.")
     };
 
-    self.mem_write(addr, data as u8);
+    self.mem_write(addr, data);
+  }
+
+  pub(super) fn set_to_destination_16(&mut self, dst: &Operand, data: u16) {
+    match dst.kind {
+      OperandType::Register(reg) => {
+        match reg {
+          RegisterOperand::AF => self.set_af(data),
+          RegisterOperand::BC => self.set_bc(data),
+          RegisterOperand::DE => self.set_de(data),
+          RegisterOperand::HL => self.set_hl(data),
+          RegisterOperand::SP => self.sp = data,
+          _ => panic!("Impossible to set 16bit literal value in 8bit register.")
+        }
+      },
+
+      OperandType::Literal(lit) => {
+        match lit {
+          LiteralOperand::a16 => {
+            let addr = self.mem_read_16(self.pc);
+            self.mem_write_16(addr, data);
+          },
+          _ => panic!("Impossible to address 8bit literal value.")
+        }
+      },
+
+      _ => panic!("Impossible destination to set.")
+    }
   }
 }

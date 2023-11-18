@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-  use tomboy_emu::{cpu::CPU, mmu::MMU};
+  use tomboy_emu::{cpu::CPU, mmu::MMU, definitions::WRAM_START};
   
   fn init_cpu() -> CPU {
     let mem = MMU::new(vec![]);
@@ -12,6 +12,19 @@ mod tests {
     let mut cpu = init_cpu();
     cpu.b = 0xff;
     cpu.load_and_run(vec![0x78, 0x10]);
+
+    assert_eq!(cpu.a, 0xff);
+  }
+
+  #[test]
+  fn load_indirect_to_a() {
+    let mut cpu = init_cpu();
+
+    cpu.mem_write(WRAM_START + 100, 0xff);
+
+    let [low, high] = (WRAM_START + 100).to_le_bytes();
+    dbg!(low, high);
+    cpu.load_and_run(vec![0x00, 0xfa, low, high, 0x10]);
 
     assert_eq!(cpu.a, 0xff);
   }
