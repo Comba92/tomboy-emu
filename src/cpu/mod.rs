@@ -40,6 +40,7 @@ pub struct CPU {
   pub sp: u16,
   pub pc: u16,
   pub memory: MMU,
+  cycles: usize,
 }
 
 // Boilerplate, constructor, getter, setter
@@ -59,6 +60,7 @@ impl CPU {
       ime: false,
       ime_to_set: false,
       memory,
+      cycles: 0,
     }
   }
 
@@ -94,17 +96,6 @@ impl CPU {
     self.mem_write(addr + 1, high);
   }
 
-  pub fn stack_push(&mut self, data: u16) {
-    self.mem_write_16(self.sp.wrapping_sub(2), data);
-    self.sp = self.sp.wrapping_sub(2);
-  }
-
-  pub fn stack_pop(&mut self) -> u16 {
-    let value = self.mem_read_16(self.sp);
-    self.sp = self.sp.wrapping_add(2);
-    value
-  }
-
   pub fn get_ie(&self) -> InterruptRegister {
     InterruptRegister::new( self.mem_read(INTERRUPT_ENABLE) )
   }
@@ -120,6 +111,17 @@ impl CPU {
 
 // Important Stuff
 impl CPU {
+  pub fn stack_push(&mut self, data: u16) {
+    self.mem_write_16(self.sp.wrapping_sub(2), data);
+    self.sp = self.sp.wrapping_sub(2);
+  }
+
+  pub fn stack_pop(&mut self) -> u16 {
+    let value = self.mem_read_16(self.sp);
+    self.sp = self.sp.wrapping_add(2);
+    value
+  }
+
   pub fn interrupts_handle(&mut self) {
     let mut if_reg = self.get_if();
     let ie_reg = self.get_ie();
@@ -143,8 +145,8 @@ impl CPU {
     self.stack_push(self.pc);
     match int {
       InterruptRegister::VBLANK => self.pc = 0x40,
-      InterruptRegister::LCD => self.pc = 0x48,
-      InterruptRegister::TIMER => self.pc = 0x50,
+      InterruptRegister::LCD    => self.pc = 0x48,
+      InterruptRegister::TIMER  => self.pc = 0x50,
       InterruptRegister::SERIAL => self.pc = 0x58,
       InterruptRegister::JOYPAD => self.pc = 0x60,
       _ => {}

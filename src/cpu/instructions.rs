@@ -39,16 +39,6 @@ impl CPU {
     self.f.set(Flags::HCARRY, result > 0x0fff);
   }
 
-  pub fn update_carry_16_sub(&mut self, a: u16, b: u16) {
-    let result = (a as u32).wrapping_sub(b as u32);
-    self.f.set(Flags::CARRY, result > 0xffff);
-  }
-
-  pub fn update_hcarry_16_sub(&mut self, a: u16, b: u16) {
-    let result = (a & 0x0fff).wrapping_sub(b & 0x0fff);
-    self.f.set(Flags::HCARRY, result > 0x0fff);
-  }
-
   pub fn update_zero_and_carries(&mut self, a: u8, b: u8, c: u8) {
     self.update_zero(a.wrapping_add(b).wrapping_add(c));
     self.update_carry(a, b, c);
@@ -98,27 +88,6 @@ impl CPU {
   pub fn ld_a_to_io_in_c_reg(&mut self) {
     let addr = 0xFF00 + self.c as u16;
     self.mem_write(addr, self.a);
-  }
-
-  // FIXME
-  pub fn ld_sp_sign(&mut self, offset: &Operand) {
-    let data = (self.get_from_source(offset) as i8) as i16;
-    let subtraction = data < 0;
-    let result = self.sp.wrapping_add_signed(data);
-
-    self.f.remove(Flags::ZERO);
-    self.f.remove(Flags::SUB);
-
-    
-    if subtraction {
-      self.update_hcarry_16_sub(result, data as u16);
-      self.update_carry_16_sub(result, data as u16);
-    } else {
-      self.update_hcarry_16(result, data as u16);
-      self.update_carry_16(result, data as u16);
-    }
-
-    self.set_hl(result);
   }
 
   pub fn ldi(&mut self, dst: &Operand, src: &Operand) {
@@ -262,24 +231,50 @@ impl CPU {
     self.update_carry_16(hl, data);
   }
 
-  // FIXME
   pub fn add_sp_sign(&mut self, offset: &Operand) {
-    let data = (self.get_from_source(offset) as i8) as i16;
-    let subtraction = data < 0;
-    let result = self.sp.wrapping_add_signed(data);
+    let data = self.get_from_source(offset);
+    let signed = (self.get_from_source(offset) as i8) as i16;
+    let subtraction = signed < 0;
+    let result = self.sp.wrapping_add_signed(signed);
 
     self.f.remove(Flags::ZERO);
     self.f.remove(Flags::SUB);
 
+    // Not documented anywhere!! This add gets treated as an 8bit operation
+    // So both the carry flag and half carry get set as if it was an 8 bit operation!
+    // https://stackoverflow.com/questions/57958631/game-boy-half-carry-flag-and-16-bit-instructions-especially-opcode-0xe8
+    // https://stackoverflow.com/questions/5159603/gbz80-how-does-ld-hl-spe-affect-h-and-c-flags
     if subtraction {
-      self.update_hcarry_16_sub(result, data as u16);
-      self.update_carry_16_sub(result, data as u16);
+      self.f.set(Flags::HCARRY, result & 0xf <= self.sp & 0xf);
+      self.f.set(Flags::CARRY, result & 0xff <= self.sp & 0xff);
     } else {
-      self.update_hcarry_16(result, data as u16);
-      self.update_carry_16(result, data as u16);
+      self.update_hcarry(self.sp as u8, data as u8, 0);
+      self.update_carry(self.sp as u8, data as u8, 0);
     }
 
     self.sp = result;
+  }
+
+
+  pub fn ld_sp_sign(&mut self, offset: &Operand) {
+    let data = self.get_from_source(offset);
+    let signed = (self.get_from_source(offset) as i8) as i16;
+    let subtraction = signed < 0;
+    let result = self.sp.wrapping_add_signed(signed);
+
+    self.f.remove(Flags::ZERO);
+    self.f.remove(Flags::SUB);
+    
+    // Same as add_sp_sign()
+    if subtraction {
+      self.f.set(Flags::CARRY, result & 0xff <= self.sp & 0xff);
+      self.f.set(Flags::HCARRY, result & 0xf <= self.sp & 0xf);
+    } else {
+      self.update_hcarry(self.sp as u8, data as u8, 0);
+      self.update_carry(self.sp as u8, data as u8, 0);
+    }
+
+    self.set_hl(result);
   }
 
   pub fn daa(&mut self) {
