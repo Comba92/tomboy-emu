@@ -7,29 +7,45 @@ const conds = ["CY", "NC", "Z", "NZ"]
 const bits = ["0", "1" , "2" , "3" , "4" , "5" , "6" , "7"]
 const literals = ["n8", "n16", "a8", "a16", "e8"]
 
+const jumps = [
+  "0x18", "0x20", "0x28", "0x30", "0x38", "0xC2", "0xC3", "0xCA", "0xD2", "0xDA", "0xE9",
+  "0xC4", "0xCC", "0xCD", "0xD4", "0xDC", "0xC0", "0xC8", "0xC9", "0xD0", "0xD8"
+]
+
 function parse_operand(data) {
   let type = '';
 
-  if (data.name[0] == '$' || !isNaN(Number(data.name[0]))) { type = 'Literal(n8)' }
+  if (data.name[0] == '$') { 
+    let name = data.name.replace("$", '')
+    type = `Interrupt(0x${name})`
+  }
+
+  else if (!isNaN(data.name)) {
+    type = `Bit(${data.name})` 
+  }
+
   else if (conds.includes(data.name)) { type = 'Condition(' + data.name + ')'}
   else if (bits.includes(data.name)) { type = 'Literal(n8)' }
   else if (literals.includes(data.name)) { type = 'Literal(' + data.name + ')' }
   else { type = 'Register(' + data.name + ')'}
-
+  
   return `Operand {kind: ${type}, immediate: ${data.immediate}}`
 }
 
 function parse_obj(data) {
   return Object.entries(data).map( ([key, value]) => {
-    if (["0xDC", "0xD8", "0xDA"].includes(key)) {
-      value.operands[0].name = "CY"
+    if (jumps.includes(key)) {
+      if (value.operands 
+        && value.operands[0]
+        && value.operands[0].name == "C")
+        value.operands[0].name = "CY"
     }
 
     let cycles = isNaN(value.cycles) ? 0 : value.cycles
     let operands = value.operands.map(e => parse_operand(e)).join(', ')
     let code = parseInt(key, 16)
 
-    return `\tOpcode {code: ${code}, name: "${value.mnemonic}", bytes: ${value.bytes}, cycles: ${cycles}, immediate: ${value.immediate}, operands: vec!(${operands})}`
+    return `\tOpcode {code: ${key}, name: "${value.mnemonic}", bytes: ${value.bytes}, cycles: ${cycles}, immediate: ${value.immediate}, operands: vec!(${operands})}`
   }).join(', \n')
 }
 

@@ -20,19 +20,32 @@ pub struct Operand {
 pub enum OperandType {  
   Register(RegisterOperand),
   Condition(ConditionOperand),
-  Literal(LiteralOperand)
+  Literal(LiteralOperand),
+  Interrupt(u8),
+  Bit(u8)
 }
 
 impl Operand {
-  pub fn is_register_16(&self) -> bool {
+  pub fn is_value_16(&self) -> bool {
+    // this is awlays 8bit
     if !self.immediate { return false }
 
-    if let OperandType::Register(reg) = self.kind {
-      match reg {
-        RegisterOperand::AF | RegisterOperand::BC | RegisterOperand::DE | RegisterOperand::HL | RegisterOperand::SP => true,
-        _ => false,
-      }
-    } else { false }
+    match self.kind {
+      OperandType::Register(reg) => {
+        match reg {
+          RegisterOperand::AF | RegisterOperand::BC | RegisterOperand::DE |
+          RegisterOperand::HL | RegisterOperand::SP => true,
+          _ => false,
+        }
+      },
+      OperandType::Literal(lit) => {
+        match lit {
+          LiteralOperand::a16 | LiteralOperand::n16 => true,
+          _ => false,
+        }
+      },
+      _ => false,
+    }
   }
 }
 
@@ -44,13 +57,7 @@ pub enum ConditionOperand { Z, NZ, CY, NC }
 
 #[derive(Debug, Clone, Copy)]
 #[allow(non_camel_case_types)]
-pub enum LiteralOperand {
-  n8,
-  n16,
-  a8,
-  a16,
-  e8,
-}
+pub enum LiteralOperand { n8, n16, a8, a16, e8 }
 
 impl CPU {
   pub(super) fn get_from_source(&self, src: &Operand) -> u16 {
@@ -79,7 +86,7 @@ impl CPU {
           ConditionOperand::CY => self.f.contains(Flags::CARRY) as u16,
           ConditionOperand::NC => !self.f.contains(Flags::CARRY) as u16,
           ConditionOperand::Z  => self.f.contains(Flags::ZERO) as u16,
-          ConditionOperand::NZ  => !self.f.contains(Flags::ZERO) as u16,
+          ConditionOperand::NZ => !self.f.contains(Flags::ZERO) as u16,
         }
       },
 
@@ -89,12 +96,15 @@ impl CPU {
             self.mem_read(self.pc) as u16,
 
           LiteralOperand::a8 => 
-            u16::from_be_bytes([0xff, self.mem_read(self.pc)]), 
+            0xff00 + self.mem_read(self.pc) as u16, 
 
           LiteralOperand::n16 | LiteralOperand::a16 => 
             self.mem_read_16(self.pc),
         }
-      }
+      },
+
+      OperandType::Interrupt(int) => int as u16,
+      OperandType::Bit(bit) => bit as u16
     };
 
     if src.immediate { data_to_get }
@@ -151,7 +161,7 @@ impl CPU {
       OperandType::Literal(lit) => {
         match lit {
           LiteralOperand::a8 => {
-            u16::from_be_bytes( [0xff, self.mem_read(self.pc)] )
+            0xff00 + self.mem_read(self.pc) as u16
           }
           LiteralOperand::a16 => {
             self.mem_read_16(self.pc)

@@ -24,6 +24,7 @@ impl Flags {
   pub fn new(value: u8) -> Self { Self::from_bits_truncate(value) }
 }
 
+
 pub struct CPU {
   pub a: u8,
   pub f: Flags,
@@ -41,6 +42,7 @@ pub struct CPU {
   pub memory: MMU,
 }
 
+// Boilerplate, constructor, getter, setter
 impl CPU {
   pub fn new(memory: MMU) -> Self {
     CPU {
@@ -72,66 +74,6 @@ impl CPU {
   pub fn set_de(&mut self, data: u16) { let [high, low] = data.to_be_bytes(); self.d = high; self.e = low; }
   pub fn set_hl(&mut self, data: u16) { let [high, low] = data.to_be_bytes(); self.h = high; self.l = low; }
 
-  pub fn update_zero(&mut self, result: u8) { self.f.set(Flags::ZERO, result == 0); }
-
-  pub fn update_carry(&mut self, a: u8, b: u8, c: u8) {
-    let result = (a as u16).wrapping_add(b as u16).wrapping_add(c as u16);
-    self.f.set(Flags::CARRY, result > 0xff);
-  }
-
-  pub fn update_carry_sub(&mut self, a: u8, b: u8, c: u8) {
-    let result = (a as u16).wrapping_sub(b as u16).wrapping_sub(c as u16);
-    self.f.set(Flags::CARRY, result > 0xff);
-  }
-
-  pub fn update_carry_16(&mut self, a: u16, b: u16) {
-    let result = (a as u32).wrapping_add(b as u32);
-    self.f.set(Flags::CARRY, result > 0xffff);
-  }
-
-  pub fn update_hcarry(&mut self, a: u8, b: u8, c: u8) {
-    let result = (a & 0xf).wrapping_add(b & 0xf).wrapping_add(c & 0xf);
-    self.f.set(Flags::HCARRY, result > 0xf);
-  }
-
-  pub fn update_hcarry_sub(&mut self, a: u8, b: u8, c: u8) {
-    let result = (a & 0xf).wrapping_sub(b & 0xf).wrapping_sub(c & 0xf);
-    self.f.set(Flags::HCARRY, result > 0xf);
-  }
-
-
-  pub fn update_hcarry_16(&mut self, a: u16, b: u16) {
-    let result = (a & 0x0fff).wrapping_add(b & 0x0fff);
-    self.f.set(Flags::HCARRY, result > 0x0fff);
-  }
-
-  pub fn update_zero_and_carries(&mut self, a: u8, b: u8, c: u8) {
-    self.update_zero(a.wrapping_add(b).wrapping_add(c));
-    self.update_carry(a, b, c);
-    self.update_hcarry(a, b, c);
-  }
-
-  pub fn update_zero_and_carries_sub(&mut self, a: u8, b: u8, c: u8) {
-    self.update_zero(a.wrapping_sub(b).wrapping_sub(c));
-    self.update_carry_sub(a, b, c);
-    self.update_hcarry_sub(a, b, c);
-  }
-
-  pub fn set_hcarry_and_unset_carry(&mut self) {
-    self.f.insert(Flags::HCARRY);
-    self.f.remove(Flags::CARRY);
-  }
-  pub fn unset_hcarry_and_carry(&mut self) {
-    self.f.remove(Flags::HCARRY);
-    self.f.remove(Flags::CARRY);
-  }
-  pub fn update_flags_after_rotation(&mut self, result: u8, bit: u8) {
-    self.update_zero(result);
-    self.f.remove(Flags::SUB);
-    self.f.remove(Flags::HCARRY);
-    self.f.set(Flags::CARRY, bit != 0);
-  }
-
   pub fn mem_read(&self, addr: u16) -> u8 {
     self.memory.mem_read(addr)
   }
@@ -151,7 +93,6 @@ impl CPU {
     self.mem_write(addr, low);
     self.mem_write(addr + 1, high);
   }
-
 
   pub fn stack_push(&mut self, data: u16) {
     self.mem_write_16(self.sp.wrapping_sub(2), data);
@@ -175,7 +116,10 @@ impl CPU {
   pub fn set_if(&mut self, int: InterruptRegister) {
     self.mem_write(INTERRUPT_FLAG, int.bits());
   }
+}
 
+// Important Stuff
+impl CPU {
   pub fn interrupts_handle(&mut self) {
     let mut if_reg = self.get_if();
     let ie_reg = self.get_ie();

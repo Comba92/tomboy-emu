@@ -5,26 +5,118 @@ const REG_A_OPERAND: Operand = Operand {
   immediate: true,
 };
 
+// Flags Management
+impl CPU {
+  pub fn update_zero(&mut self, result: u8) { self.f.set(Flags::ZERO, result == 0); }
 
+  pub fn update_carry(&mut self, a: u8, b: u8, c: u8) {
+    let result = (a as u16).wrapping_add(b as u16).wrapping_add(c as u16);
+    self.f.set(Flags::CARRY, result > 0xff);
+  }
+
+  pub fn update_carry_sub(&mut self, a: u8, b: u8, c: u8) {
+    let result = (a as u16).wrapping_sub(b as u16).wrapping_sub(c as u16);
+    self.f.set(Flags::CARRY, result > 0xff);
+  }
+
+  pub fn update_hcarry(&mut self, a: u8, b: u8, c: u8) {
+    let result = (a & 0xf).wrapping_add(b & 0xf).wrapping_add(c & 0xf);
+    self.f.set(Flags::HCARRY, result > 0xf);
+  }
+
+  pub fn update_hcarry_sub(&mut self, a: u8, b: u8, c: u8) {
+    let result = (a & 0xf).wrapping_sub(b & 0xf).wrapping_sub(c & 0xf);
+    self.f.set(Flags::HCARRY, result > 0xf);
+  }
+
+  pub fn update_carry_16(&mut self, a: u16, b: u16) {
+    let result = (a as u32).wrapping_add(b as u32);
+    self.f.set(Flags::CARRY, result > 0xffff);
+  }
+
+  pub fn update_hcarry_16(&mut self, a: u16, b: u16) {
+    let result = (a & 0x0fff).wrapping_add(b & 0x0fff);
+    self.f.set(Flags::HCARRY, result > 0x0fff);
+  }
+
+  pub fn update_carry_16_sub(&mut self, a: u16, b: u16) {
+    let result = (a as u32).wrapping_sub(b as u32);
+    self.f.set(Flags::CARRY, result > 0xffff);
+  }
+
+  pub fn update_hcarry_16_sub(&mut self, a: u16, b: u16) {
+    let result = (a & 0x0fff).wrapping_sub(b & 0x0fff);
+    self.f.set(Flags::HCARRY, result > 0x0fff);
+  }
+
+  pub fn update_zero_and_carries(&mut self, a: u8, b: u8, c: u8) {
+    self.update_zero(a.wrapping_add(b).wrapping_add(c));
+    self.update_carry(a, b, c);
+    self.update_hcarry(a, b, c);
+  }
+
+  pub fn update_zero_and_carries_sub(&mut self, a: u8, b: u8, c: u8) {
+    self.update_zero(a.wrapping_sub(b).wrapping_sub(c));
+    self.update_carry_sub(a, b, c);
+    self.update_hcarry_sub(a, b, c);
+  }
+
+  pub fn set_hcarry_and_unset_carry(&mut self) {
+    self.f.insert(Flags::HCARRY);
+    self.f.remove(Flags::CARRY);
+  }
+  pub fn unset_hcarry_and_carry(&mut self) {
+    self.f.remove(Flags::HCARRY);
+    self.f.remove(Flags::CARRY);
+  }
+  pub fn update_flags_after_rotation(&mut self, result: u8, bit: u8) {
+    self.update_zero(result);
+    self.f.remove(Flags::SUB);
+    self.f.remove(Flags::HCARRY);
+    self.f.set(Flags::CARRY, bit != 0);
+  }
+}
+
+
+// Instructions
 impl CPU {
   pub fn ld(&mut self, dst: &Operand, src: &Operand) {
     let data = self.get_from_source(src);
 
-    if dst.is_register_16() {
+    if src.is_value_16() {
       self.set_to_destination_16(dst, data);
     } else {
       self.set_to_destination(dst, data as u8);
     }
   }
 
+  pub fn ld_io_in_c_reg_to_a(&mut self) {
+    let addr = 0xFF00 + self.c as u16;
+    self.a = self.mem_read(addr);
+  }
+
+  pub fn ld_a_to_io_in_c_reg(&mut self) {
+    let addr = 0xFF00 + self.c as u16;
+    self.mem_write(addr, self.a);
+  }
+
+  // FIXME
   pub fn ld_sp_sign(&mut self, offset: &Operand) {
     let data = (self.get_from_source(offset) as i8) as i16;
+    let subtraction = data < 0;
     let result = self.sp.wrapping_add_signed(data);
 
     self.f.remove(Flags::ZERO);
     self.f.remove(Flags::SUB);
-    self.update_hcarry_16(self.sp, data as u16);
-    self.update_carry_16(self.sp, data as u16);
+
+    
+    if subtraction {
+      self.update_hcarry_16_sub(result, data as u16);
+      self.update_carry_16_sub(result, data as u16);
+    } else {
+      self.update_hcarry_16(result, data as u16);
+      self.update_carry_16(result, data as u16);
+    }
 
     self.set_hl(result);
   }
@@ -133,7 +225,7 @@ impl CPU {
     let data = self.get_from_source(dst);
     let result = data.wrapping_add(1);
 
-    if dst.is_register_16() {
+    if dst.is_value_16() {
       self.set_to_destination_16(dst, result);
     } else {
       self.f.remove(Flags::SUB);
@@ -148,7 +240,7 @@ impl CPU {
     let data = self.get_from_source(dst);
     let result = data.wrapping_sub(1);
 
-    if dst.is_register_16() {
+    if dst.is_value_16() {
       self.set_to_destination_16(dst, result);
     } else {
       self.f.insert(Flags::SUB);
@@ -170,14 +262,22 @@ impl CPU {
     self.update_carry_16(hl, data);
   }
 
+  // FIXME
   pub fn add_sp_sign(&mut self, offset: &Operand) {
     let data = (self.get_from_source(offset) as i8) as i16;
+    let subtraction = data < 0;
     let result = self.sp.wrapping_add_signed(data);
 
     self.f.remove(Flags::ZERO);
     self.f.remove(Flags::SUB);
-    self.update_hcarry_16(self.sp, data as u16);
-    self.update_carry_16(self.sp, data as u16);
+
+    if subtraction {
+      self.update_hcarry_16_sub(result, data as u16);
+      self.update_carry_16_sub(result, data as u16);
+    } else {
+      self.update_hcarry_16(result, data as u16);
+      self.update_carry_16(result, data as u16);
+    }
 
     self.sp = result;
   }
@@ -378,7 +478,7 @@ impl CPU {
   }
 
   pub fn rst(&mut self, dst: &Operand) {
-    let addr = self.get_from_source(dst);
+    let addr = self.get_from_source(dst);     
     self.stack_push(self.pc);
     self.pc = addr;
   }
@@ -389,16 +489,16 @@ impl CPU {
   }
 
    // The effect of ei is delayed by one instruction. This means that ei followed immediately by di does not allow any interrupts between them. This interacts with the halt bug in an interesting way.
-
    pub fn di(&mut self) { self.ime = false; }
    pub fn ei(&mut self) { self.ime_to_set = true; }
 
+
   pub fn bit(&mut self, bit: &Operand, src: &Operand) {
-    let pos = self.get_from_source(bit);
-    let data = self.get_from_source(src);
+    let pos = self.get_from_source(bit) as u8;
+    let data = self.get_from_source(src) as u8;
 
     let result = data & (1 << pos);
-    self.update_zero(result as u8);
+    self.update_zero(result);
     self.f.remove(Flags::SUB);
     self.f.insert(Flags::HCARRY);
   }

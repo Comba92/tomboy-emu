@@ -1,4 +1,5 @@
 #!/bin/bash
+cd ..
 NUM=$1
 cargo run "test_roms/$NUM.gb" > "logs/$NUM-results.txt" off 2>"logs/$NUM-trace.txt"
 
