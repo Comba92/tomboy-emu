@@ -137,11 +137,6 @@ impl CPU {
       return;
     }
 
-    // halt bug  
-    if self.halted && !self.ime {
-      self.halt
-    }
-
     self.halted = false;
     if !self.ime { return; }
 
@@ -197,31 +192,23 @@ impl CPU {
   } 
 
   pub fn step(&mut self) {
+    self.log_trace();
     let code = self.memory.mem_read(self.pc);
 
     let opcode = if code == 0xCB {
-      self.pc = self.pc.wrapping_add(1);
-      let code = self.memory.mem_read(self.pc);
+      let code = self.memory
+        .mem_read(self.pc.wrapping_add(1));
       CB_OPTABLE.get(&code).unwrap()
     } else { 
       OPTABLE.get(&code).unwrap() 
     };
 
-    // move pc to first operand, if there are any
-    self.pc = self.pc.wrapping_add(1);
-    let pc_state = self.pc;
-
+    self.pc = self.pc.wrapping_add(opcode.bytes as u16);
 
     if code == 0xCB {
       self.cb_decode(opcode);
     } else { 
       self.decode(opcode); 
-    }
-
-    // if the op hasn't changed pc, set it to next op address, and update cycles
-    if pc_state == self.pc {
-      let head = if code == 0xCB { 2 } else { 1 };
-      self.pc = self.pc.wrapping_add(opcode.bytes as u16 - head);
     }
 
     if self.mem_read(0xff02) == 0x81{ 
@@ -239,8 +226,8 @@ impl CPU {
   }
 
   pub fn log_op(&self, opcode: &Opcode) {
-    let second = self.mem_read(self.pc); 
-    let third =  self.mem_read(self.pc.wrapping_add(1));
-    eprintln!("[Running] {:#06x}: {},\t({:#04x}, {:#04x}, {:#04x})", self.pc.wrapping_sub(1), opcode.name, opcode.code, second, third);
+    let second = self.mem_read(self.pc.wrapping_add(1)); 
+    let third =  self.mem_read(self.pc.wrapping_add(2));
+    eprintln!("[Running] {:#06x}: {},\t({:#04x}, {:#04x}, {:#04x})", self.pc, opcode.name, opcode.code, second, third);
   }
 }

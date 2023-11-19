@@ -91,15 +91,17 @@ impl CPU {
       },
 
       OperandType::Literal(lit) => {
+        // when computing the instruction, the pc is pointing to the next instruction.
+        // we have to decrease it to read the operand.
         match lit {
           LiteralOperand::n8 | LiteralOperand::e8 => 
-            self.mem_read(self.pc) as u16,
+            self.mem_read(self.pc.wrapping_sub(1)) as u16,
 
           LiteralOperand::a8 => 
-            0xff00 + self.mem_read(self.pc) as u16, 
+            0xff00 + self.mem_read(self.pc.wrapping_sub(1)) as u16, 
 
           LiteralOperand::n16 | LiteralOperand::a16 => 
-            self.mem_read_16(self.pc),
+            self.mem_read_16(self.pc.wrapping_sub(2)),
         }
       },
 
@@ -133,9 +135,11 @@ impl CPU {
       },
 
       OperandType::Literal(lit) => {
+        // when computing the instruction, the pc is pointing to the next instruction.
+        // we have to decrease it to read the operand.
         match lit {
           LiteralOperand::a16 => {
-            let addr = self.mem_read_16(self.pc);
+            let addr = self.mem_read_16(self.pc.wrapping_sub(2));
             self.mem_write(addr, data as u8);
           }
           _ => panic!("Impossible to address 8bit literal value.")
@@ -159,9 +163,11 @@ impl CPU {
       },
 
       OperandType::Literal(lit) => {
+        // when computing the instruction, the pc is pointing to the next instruction.
+        // we have to decrease it to read the operand.
         match lit {
-          LiteralOperand::a8 => 0xff00 + self.mem_read(self.pc) as u16,
-          LiteralOperand::a16 => self.mem_read_16(self.pc),
+          LiteralOperand::a8 => 0xff00 + self.mem_read(self.pc.wrapping_sub(1)) as u16,
+          LiteralOperand::a16 => self.mem_read_16(self.pc.wrapping_sub(2)),
           
           _ => panic!("Impossible to address 8bit literal value.")
         } 
@@ -187,9 +193,11 @@ impl CPU {
       },
 
       OperandType::Literal(lit) => {
+        // when computing the instruction, the pc is pointing to the next instruction.
+        // we have to decrease it to read the operand.
         match lit {
           LiteralOperand::a16 => {
-            let addr = self.mem_read_16(self.pc);
+            let addr = self.mem_read_16(self.pc.wrapping_sub(2));
             self.mem_write_16(addr, data);
           },
           _ => panic!("Impossible to address 8bit literal value.")

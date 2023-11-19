@@ -435,8 +435,6 @@ impl CPU {
   pub fn jr(&mut self, dst: &Operand) {
     let addr = self.get_from_source(dst) as i8;
     self.pc = self.pc
-      // The program counter points to the next instruction before the current instruction is evaluated. 
-      .wrapping_add(1)
       .wrapping_add_signed(addr as i16);
   }
 
@@ -449,7 +447,7 @@ impl CPU {
 
   pub fn call(&mut self, dst: &Operand) {
     // The program counter points to the next instruction before the current instruction is evaluated. 
-    self.stack_push(self.pc.wrapping_add(2));
+    self.stack_push(self.pc);
     let addr = self.get_from_source(dst);
     self.pc = addr;
   }
