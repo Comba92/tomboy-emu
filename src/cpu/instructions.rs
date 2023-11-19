@@ -473,14 +473,15 @@ impl CPU {
   }
 
   pub fn rst(&mut self, dst: &Operand) {
-    let addr = self.get_from_source(dst);     
+    let addr = self.get_from_source(dst);
+    // The program counter points to the next instruction before the current instruction is evaluated. 
     self.stack_push(self.pc);
     self.pc = addr;
   }
 
   pub fn reti(&mut self) {
-    self.ret();
     self.ime = true;
+    self.ret();
   }
 
    // The effect of ei is delayed by one instruction. This means that ei followed immediately by di does not allow any interrupts between them. This interacts with the halt bug in an interesting way.

@@ -7,7 +7,7 @@ impl CPU {
     match opcode.code {
       0x00 => (),
       0x10 => panic!("STOP reached."), // STOP
-      0x76 => panic!("HALT reached."), // HALT
+      0x76 => self.halt(),
 
       0x01 | 0x02 | 0x06 | 0x08 | 0x0A |
       0x0E | 0x11 | 0x12 | 0x16 | 0x1A |

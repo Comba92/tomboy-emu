@@ -34,8 +34,10 @@ pub struct CPU {
   pub e: u8,
   pub h: u8,
   pub l: u8,
+
   pub ime: bool,
   pub ime_to_set: bool,
+  pub halted: bool,
 
   pub sp: u16,
   pub pc: u16,
@@ -59,6 +61,7 @@ impl CPU {
       pc: PC_INIT,
       ime: false,
       ime_to_set: false,
+      halted: false,
       memory,
       cycles: 0,
     }
@@ -122,15 +125,29 @@ impl CPU {
     value
   }
 
+  pub fn halt(&mut self) {
+    self.halted = true;
+  }
+
   pub fn interrupts_handle(&mut self) {
     let mut if_reg = self.get_if();
     let ie_reg = self.get_ie();
 
-    if if_reg.is_empty() || ie_reg.is_empty() {
+    if if_reg.bits() & ie_reg.bits() == 0 {
       return;
     }
-      
+
+    // halt bug  
+    if self.halted && !self.ime {
+      self.halt
+    }
+
+    self.halted = false;
+    if !self.ime { return; }
+
+    eprintln!("[InterruptsHandler] Checking for interrupts...");
     for (_, interrupt) in if_reg.iter_names() {
+      eprintln!("[InterruptsHandler] {:?}", interrupt);
       if ie_reg.contains(interrupt) {
         self.ime = false;
         if_reg.remove(interrupt);
@@ -143,6 +160,7 @@ impl CPU {
 
   pub fn interrupt_call(&mut self, int: InterruptRegister) {
     self.stack_push(self.pc);
+    eprintln!("[InterruptsHandler] PC pushed. Redirecting to interrupt vector...");
     match int {
       InterruptRegister::VBLANK => self.pc = 0x40,
       InterruptRegister::LCD    => self.pc = 0x48,
@@ -165,17 +183,21 @@ impl CPU {
 
   pub fn run(&mut self) {
     loop { 
-      if !self.step() {
-        break;
-      }  
+      if !self.halted {
+        self.step();
+      }
+
+      self.interrupts_handle();
+
+      if self.ime_to_set {
+        self.ime_to_set = false;
+        self.ime = true;
+      } 
     }
   } 
 
-  pub fn step(&mut self) -> bool {
-    self.log_trace();
+  pub fn step(&mut self) {
     let code = self.memory.mem_read(self.pc);
-
-    if code == 0x10 { return false };
 
     let opcode = if code == 0xCB {
       self.pc = self.pc.wrapping_add(1);
@@ -189,7 +211,6 @@ impl CPU {
     self.pc = self.pc.wrapping_add(1);
     let pc_state = self.pc;
 
-    //self.log_op(opcode);
 
     if code == 0xCB {
       self.cb_decode(opcode);
@@ -197,27 +218,16 @@ impl CPU {
       self.decode(opcode); 
     }
 
-    // if the op hasn't changed pc, set it to next op address 
+    // if the op hasn't changed pc, set it to next op address, and update cycles
     if pc_state == self.pc {
       let head = if code == 0xCB { 2 } else { 1 };
       self.pc = self.pc.wrapping_add(opcode.bytes as u16 - head);
-    }
-
-    if self.ime {
-      self.interrupts_handle();
     }
 
     if self.mem_read(0xff02) == 0x81{ 
       eprintln!("{}", self.mem_read(0xff01) as char);
       self.mem_write(0xff02, 0);
     }
-
-    if self.ime_to_set {
-      self.ime_to_set = false;
-      self.ime = true;
-    }
-
-    true
   }
 
   pub fn log_trace(&self) {

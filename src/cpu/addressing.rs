@@ -160,13 +160,9 @@ impl CPU {
 
       OperandType::Literal(lit) => {
         match lit {
-          LiteralOperand::a8 => {
-            0xff00 + self.mem_read(self.pc) as u16
-          }
-          LiteralOperand::a16 => {
-            self.mem_read_16(self.pc)
-          }
-
+          LiteralOperand::a8 => 0xff00 + self.mem_read(self.pc) as u16,
+          LiteralOperand::a16 => self.mem_read_16(self.pc),
+          
           _ => panic!("Impossible to address 8bit literal value.")
         } 
       },

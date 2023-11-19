@@ -25,7 +25,7 @@ fn main() {
   let now = std::time::SystemTime::now();
   if args.len() > 1 {
     loop {
-      if now.elapsed().unwrap() > std::time::Duration::from_secs(80) {
+      if now.elapsed().unwrap() > std::time::Duration::from_secs(30) {
         std::process::exit(0);
       } 
       cpu.step(); 

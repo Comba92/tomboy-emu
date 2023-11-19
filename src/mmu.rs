@@ -2,7 +2,7 @@ use crate::definitions::*;
 use bitflags::bitflags;
 
 bitflags! {
-  #[derive(Clone, Copy, PartialEq, Eq)]
+  #[derive(Debug, Clone, Copy, PartialEq, Eq)]
   pub struct InterruptRegister: u8 {
     const VBLANK = 1 << 0;
     const LCD    = 1 << 1;
