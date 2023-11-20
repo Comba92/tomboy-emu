@@ -23,7 +23,7 @@ fn main() {
 
 
   let now = std::time::SystemTime::now();
-  if args.len() > 1 {
+  if args.len() > 2 {
     loop {
       if now.elapsed().unwrap() > std::time::Duration::from_secs(20) {
         std::process::exit(0);

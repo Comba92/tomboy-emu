@@ -31,26 +31,29 @@ pub struct MMU {
   hram: [u8; 128],
   ie_reg: InterruptRegister,
   if_reg: InterruptRegister,
+
   io_regs: [u8; 128],
+  serial_transfer: [u8; 2],
 }
 
 impl MMU {
-  pub fn new(rom: Vec<u8>) -> Self {
+  pub fn new(mut rom: Vec<u8>) -> Self {
+    rom.resize(0x8000, 0);
+
     MMU {
       ram: [0; 1024 * 8],
       hram: [0; 128],
-      io_regs: [0; 128],
       rom,
       ie_reg: InterruptRegister::new(0),
       if_reg: InterruptRegister::new(0),
+
+      io_regs: [0; 128],
+      serial_transfer: [0; 2],
     }
   }
 
   pub fn mem_read(&self, addr: u16) -> u8 {
     match addr {
-      0xff0f => self.if_reg.bits(),
-      0xffff => self.ie_reg.bits(),
-
       // required by gameboy doctor
       0xff44 => 0x90,
 
@@ -58,6 +61,10 @@ impl MMU {
       VRAM_START ..= VRAM_END => { 0 },
       EXT_RAM_START ..= EXT_RAM_END => { eprintln!("EXT RAM address range not implemented."); 0 },
       WRAM_START ..= WRAM_END => self.ram[(addr - WRAM_START) as usize],
+
+      0xff0f => self.if_reg.bits(),
+      0xffff => self.ie_reg.bits(),
+
       IO_REGISTERS_START ..= IO_REGISTERS_END => self.io_regs[(addr -  IO_REGISTERS_START) as usize],
       HRAM_START ..= HRAM_END => self.hram[(addr - HRAM_START) as usize],
 
@@ -68,18 +75,53 @@ impl MMU {
 
   pub fn mem_write(&mut self, addr: u16, data: u8) {
     match addr {
-      0xff0f => self.if_reg = InterruptRegister::new(data),
-      0xffff => self.ie_reg = InterruptRegister::new(data),
-
       ROM_START ..= ROM_END => panic!("Trying to write ROM memory at {addr:#04x}."),
       VRAM_START ..= VRAM_END => {},
       EXT_RAM_START ..= EXT_RAM_END => eprintln!("EXT RAM address range not implemented."),
       WRAM_START ..= WRAM_END => self.ram[(addr - WRAM_START) as usize] = data,
+
+      0xff0f => self.if_reg = InterruptRegister::new(data),
+      0xffff => self.ie_reg = InterruptRegister::new(data),
+
       IO_REGISTERS_START ..= IO_REGISTERS_END => self.io_regs[(addr -  IO_REGISTERS_START) as usize] = data,
       HRAM_START ..= HRAM_END => self.hram[(addr - HRAM_START) as usize] = data,
 
       _ => { eprintln!("Addressing not implemented for address {addr:#04x}"); }
     };
+  }
+
+  fn io_registers_read(&mut self, addr: u16) -> u8 {
+    match addr {
+      0xff00 => todo!("joypad input"),
+      0xff01 | 0xff02 => self.serial_transfer[(0xff01 - addr) as usize],
+      0xff04 ..= 0xff07 => todo!("timer and divder"),
+
+      0xff10 ..= 0xff3f => todo!("audio and wave pattern"),
+
+      0xff40 ..= 0xff4b => todo!("lcd registers"),
+      0xff4f => todo!("vram bank select"),
+
+      0xff50 => todo!("set to non-zero to disable boot rom"),
+      
+      _ => panic!("Addressing not implemented for address {addr:#04x}"),
+    }
+  }
+
+  fn io_registers_write(&mut self, addr: u16, data: u8) {
+    match addr {
+      0xff00 => todo!("joypad input"),
+      0xff01 | 0xff02 => self.serial_transfer[(0xff01 - addr) as usize] = data,
+      0xff04 ..= 0xff07 => todo!("timer and divder"),
+
+      0xff10 ..= 0xff3f => todo!("audio and wave pattern"),
+
+      0xff40 ..= 0xff4b => todo!("lcd registers"),
+      0xff4f => todo!("vram bank select"),
+
+      0xff50 => todo!("set to non-zero to disable boot rom"),
+      
+      _ => panic!("Addressing not implemented for address {addr:#04x}"),
+    }
   }
 }
 

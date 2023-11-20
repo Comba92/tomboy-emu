@@ -1,17 +1,15 @@
 #![allow(dead_code)]
 
 use crate::{definitions::*, mmu::{MMU, InterruptRegister}};
-use bitflags::bitflags;
 use optable::{OPTABLE, CB_OPTABLE};
-
-use self::addressing::Opcode;
+use addressing::Opcode;
 
 mod addressing;
 mod instructions;
 mod decode;
 pub mod optable;
 
-bitflags! {
+bitflags::bitflags! {
   pub struct Flags: u8 {
     const ZERO   = 1 << 7;
     const SUB    = 1 << 6;

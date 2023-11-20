@@ -35,7 +35,7 @@ pub const HRAM_START:         u16 = 0xff80;
 pub const HRAM_END:           u16 = 0xfffe;
 
 pub const INTERRUPT_ENABLE: u16 = 0xffff;
-pub const INTERRUPT_FLAG: u16   = 0xff0f;
+pub const INTERRUPT_FLAG:   u16 = 0xff0f;
 
 pub const A_INIT: u8 = 0x01;
 pub const B_INIT: u8 = 0x00;
