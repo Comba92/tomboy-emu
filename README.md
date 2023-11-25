@@ -5,11 +5,15 @@
 - **Cycle Accurate Docs**: https://raw.githubusercontent.com/rockytriton/LLD_gbemu/main/docs/The%20Cycle-Accurate%20Game%20Boy%20Docs.pdf
 - **Gekko Technical Reference**: https://gekkio.fi/files/gb-docs/gbctr.pdf
 - **Awesome GBDev** - https://github.com/gbdev/awesome-gbdev
+https://github.com/Hacktix/GBEDG/tree/master
+https://gist.github.com/SonoSooS/c0055300670d678b5ae8433e20bea595
 
 - **Optable** - https://gbdev.io/gb-opcodes/optables/
 - **Better Optable** - https://meganesu.github.io/generate-gb-opcodes/
 - **Opcodes Reference** - https://rgbds.gbdev.io/docs/v0.6.1/gbz80.7
 - **Memory Map** - http://gameboy.mongenel.com/dmg/asmmemmap.html
+
+- **Correct Logs** https://github.com/wheremyfoodat/Gameboy-logs
 
 - **BinjGB** - https://github.com/binji/binjgb
 - **PyBoy** - https://github.com/Baekalfen/PyBoy/tree/master

@@ -7,4 +7,5 @@ test_roms
 logs
 gb-test-roms
 gameboy-doctor
+Gameboy-logs
 *.txt

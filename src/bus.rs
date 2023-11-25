@@ -65,12 +65,12 @@ impl BUS {
 
   pub fn mem_read(&self, addr: u16) -> u8 {
     match addr {
-      // required by gameboy doctor
+      // required by blargg tests
       0xff44 => 0x90,
 
       ROM_START ..= ROM_END => self.rom[addr as usize],
       VRAM_START ..= VRAM_END => {
-        eprintln!("[READ] {:?}", self.ppu.vram);
+        // eprintln!("[READ] {:?}", self.ppu.vram);
         self.ppu.vram[(addr - VRAM_START) as usize]
       }
       EXT_RAM_START ..= EXT_RAM_END => { eprintln!("EXT RAM address range not implemented."); 0 },
@@ -97,7 +97,7 @@ impl BUS {
       ROM_START ..= ROM_END => panic!("Trying to write ROM memory at {addr:#04x}."),
       VRAM_START ..= VRAM_END => {
         self.ppu.vram[(addr - VRAM_START) as usize] = data;
-        eprintln!("[WRITE]{:?}", self.ppu.vram);
+        // eprintln!("[WRITE]{:?}", self.ppu.vram);
       }
       EXT_RAM_START ..= EXT_RAM_END => eprintln!("EXT RAM address range not implemented."),
       WRAM_START ..= WRAM_END => self.ram[(addr - WRAM_START) as usize] = data,

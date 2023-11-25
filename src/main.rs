@@ -43,16 +43,18 @@ fn main() {
   let rom = fs::read(rom_path)
     .expect("Error reading the file.");
 
-  let mut memory = BUS::new(rom);
+  let memory = BUS::new(rom);
   let mut cpu = CPU::new(memory);
 
   let now = std::time::SystemTime::now();
   if args.len() > 2 {
+    let delay = args.get(2).unwrap().parse().unwrap();
+    eprintln!("Running...");
     loop {
-      if now.elapsed().unwrap() > std::time::Duration::from_secs(30) {
+      if now.elapsed().unwrap() > std::time::Duration::from_secs(delay) {
         std::process::exit(0);
       } 
-      cpu.step(); 
+      cpu.step();
     }
   }
 
@@ -83,7 +85,7 @@ fn main() {
 
     cpu.step();
     
-    canvas.present();
+    //canvas.present();
     //std::thread::sleep(Duration::from_millis(1));
   }
 }

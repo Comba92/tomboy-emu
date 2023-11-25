@@ -474,15 +474,13 @@ impl CPU {
     self.pc = addr;
   }
 
+   // The effect of ei is delayed by one instruction. This means that ei followed immediately by di does not allow any interrupts between them. This interacts with the halt bug in an interesting way.
+  pub fn di(&mut self) { self.ime = false; }
+  pub fn ei(&mut self) { self.ime_to_set = true; }
   pub fn reti(&mut self) {
-    self.ime = true;
+    self.ei();
     self.ret();
   }
-
-   // The effect of ei is delayed by one instruction. This means that ei followed immediately by di does not allow any interrupts between them. This interacts with the halt bug in an interesting way.
-   pub fn di(&mut self) { self.ime = false; }
-   pub fn ei(&mut self) { self.ime_to_set = true; }
-
 
   pub fn bit(&mut self, bit: &Operand, src: &Operand) {
     let pos = self.get_from_source(bit) as u8;

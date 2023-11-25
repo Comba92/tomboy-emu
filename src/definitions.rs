@@ -51,3 +51,5 @@ pub const DIV_INIT: u16 = 0xabcc;
 
 pub const LCD_WIDTH:  usize = 160;
 pub const LCD_HEIGHT: usize = 144;
+
+pub const CLOCK_SPEED: f32 = 4.194304;
