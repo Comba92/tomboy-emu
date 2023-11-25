@@ -29,14 +29,12 @@ impl CPU {
     self.f.set(Flags::HCARRY, result > 0xf);
   }
 
-  pub fn update_carry_16(&mut self, a: u16, b: u16) {
-    let result = (a as u32).wrapping_add(b as u32);
-    self.f.set(Flags::CARRY, result > 0xffff);
-  }
-
-  pub fn update_hcarry_16(&mut self, a: u16, b: u16) {
+  pub fn update_carries_16(&mut self, a: u16, b: u16) {
     let result = (a & 0x0fff).wrapping_add(b & 0x0fff);
     self.f.set(Flags::HCARRY, result > 0x0fff);
+
+    let result = (a as u32).wrapping_add(b as u32);
+    self.f.set(Flags::CARRY, result > 0xffff);
   }
 
   pub fn update_zero_and_carries(&mut self, a: u8, b: u8, c: u8) {
@@ -227,8 +225,7 @@ impl CPU {
     self.set_hl(result);
 
     self.f.remove(Flags::SUB);
-    self.update_hcarry_16(hl, data);
-    self.update_carry_16(hl, data);
+    self.update_carries_16(hl, data);
   }
 
   pub fn add_sp_sign(&mut self, offset: &Operand) {

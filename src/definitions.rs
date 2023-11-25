@@ -47,6 +47,7 @@ pub const H_INIT: u8 = 0x01;
 pub const L_INIT: u8 = 0x4d;
 pub const SP_INIT: u16 = 0xfffe;
 pub const PC_INIT: u16 = 0x0100;
+pub const DIV_INIT: u16 = 0xabcc;
 
 pub const LCD_WIDTH:  usize = 160;
 pub const LCD_HEIGHT: usize = 144;

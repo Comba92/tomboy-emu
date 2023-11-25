@@ -1,4 +1,4 @@
-use crate::definitions::*;
+use crate::{definitions::*, ppu::PPU, timer::Timer};
 use bitflags::bitflags;
 
 bitflags! {
@@ -25,30 +25,41 @@ impl SerialControl {
   pub fn new(value: u8) -> Self { Self::from_bits_truncate(value) }
 }
 
-pub struct MMU {
+pub struct BUS {
   rom: Vec<u8>,
   pub ram: [u8; 1024 * 8],
   hram: [u8; 128],
   ie_reg: InterruptRegister,
   if_reg: InterruptRegister,
 
+  ppu: PPU,
+  timer: Timer,
   io_regs: [u8; 128],
   serial_transfer: [u8; 2],
 }
 
-impl MMU {
+impl BUS {
   pub fn new(mut rom: Vec<u8>) -> Self {
     rom.resize(0x8000, 0);
 
-    MMU {
+    BUS {
       ram: [0; 1024 * 8],
       hram: [0; 128],
       rom,
       ie_reg: InterruptRegister::new(0),
       if_reg: InterruptRegister::new(0),
 
+      ppu: PPU::new(),
+      timer: Timer::new(),
       io_regs: [0; 128],
       serial_transfer: [0; 2],
+    }
+  }
+
+  pub fn tick(&mut self, cycles: usize) {
+    let tima_overflow = self.timer.tick(cycles);
+    if tima_overflow {
+      self.if_reg.insert(InterruptRegister::TIMER);
     }
   }
 
@@ -58,9 +69,17 @@ impl MMU {
       0xff44 => 0x90,
 
       ROM_START ..= ROM_END => self.rom[addr as usize],
-      VRAM_START ..= VRAM_END => { 0 },
+      VRAM_START ..= VRAM_END => {
+        eprintln!("[READ] {:?}", self.ppu.vram);
+        self.ppu.vram[(addr - VRAM_START) as usize]
+      }
       EXT_RAM_START ..= EXT_RAM_END => { eprintln!("EXT RAM address range not implemented."); 0 },
       WRAM_START ..= WRAM_END => self.ram[(addr - WRAM_START) as usize],
+
+      0xff04 => self.timer.div.to_be_bytes()[0],
+      0xff05 => self.timer.tima,
+      0xff06 => self.timer.tma,
+      0xff07 => self.timer.tac,
 
       0xff0f => self.if_reg.bits(),
       0xffff => self.ie_reg.bits(),
@@ -76,9 +95,17 @@ impl MMU {
   pub fn mem_write(&mut self, addr: u16, data: u8) {
     match addr {
       ROM_START ..= ROM_END => panic!("Trying to write ROM memory at {addr:#04x}."),
-      VRAM_START ..= VRAM_END => {},
+      VRAM_START ..= VRAM_END => {
+        self.ppu.vram[(addr - VRAM_START) as usize] = data;
+        eprintln!("[WRITE]{:?}", self.ppu.vram);
+      }
       EXT_RAM_START ..= EXT_RAM_END => eprintln!("EXT RAM address range not implemented."),
       WRAM_START ..= WRAM_END => self.ram[(addr - WRAM_START) as usize] = data,
+
+      0xff04 => self.timer.div = 0,
+      0xff05 => self.timer.tima = data,
+      0xff06 => self.timer.tma = data,
+      0xff07 => self.timer.tac = data,
 
       0xff0f => self.if_reg = InterruptRegister::new(data),
       0xffff => self.ie_reg = InterruptRegister::new(data),

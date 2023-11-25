@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::{definitions::*, mmu::{MMU, InterruptRegister}};
+use crate::{definitions::*, bus::{BUS, InterruptRegister}};
 use optable::{OPTABLE, CB_OPTABLE};
 use addressing::Opcode;
 
@@ -39,13 +39,13 @@ pub struct CPU {
 
   pub sp: u16,
   pub pc: u16,
-  pub memory: MMU,
+  pub bus: BUS,
   cycles: usize,
 }
 
 // Boilerplate, constructor, getter, setter
 impl CPU {
-  pub fn new(memory: MMU) -> Self {
+  pub fn new(memory: BUS) -> Self {
     CPU {
       a: A_INIT,
       f: Flags::new(F_INIT),
@@ -60,7 +60,7 @@ impl CPU {
       ime: false,
       ime_to_set: false,
       halted: false,
-      memory,
+      bus: memory,
       cycles: 0,
     }
   }
@@ -78,10 +78,10 @@ impl CPU {
   pub fn set_hl(&mut self, data: u16) { let [high, low] = data.to_be_bytes(); self.h = high; self.l = low; }
 
   pub fn mem_read(&self, addr: u16) -> u8 {
-    self.memory.mem_read(addr)
+    self.bus.mem_read(addr)
   }
   pub fn mem_write(&mut self, addr: u16, data: u8) {
-    self.memory.mem_write(addr, data);
+    self.bus.mem_write(addr, data);
   }
   
   pub fn mem_read_16(&self, addr: u16) -> u16 {
@@ -170,7 +170,7 @@ impl CPU {
   }
 
   pub fn load_to_ram(&mut self, program: Vec<u8>) {
-    self.memory.ram[0 .. program.len()].copy_from_slice(&program);
+    self.bus.ram[0 .. program.len()].copy_from_slice(&program);
     self.pc = WRAM_START;
   }
 
@@ -190,11 +190,10 @@ impl CPU {
   } 
 
   pub fn step(&mut self) {
-    self.log_trace();
-    let code = self.memory.mem_read(self.pc);
+    let code = self.bus.mem_read(self.pc);
 
     let opcode = if code == 0xCB {
-      let code = self.memory
+      let code = self.bus
         .mem_read(self.pc.wrapping_add(1));
       CB_OPTABLE.get(&code).unwrap()
     } else { 
@@ -208,6 +207,8 @@ impl CPU {
     } else { 
       self.decode(opcode); 
     }
+
+    self.bus.tick(opcode.cycles);
 
     if self.mem_read(0xff02) == 0x81{ 
       eprintln!("{}", self.mem_read(0xff01) as char);

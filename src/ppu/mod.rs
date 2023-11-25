@@ -32,9 +32,13 @@ impl LCDStatus {
 }
 
 pub struct PPU {
-  vram: [u8; 1024 * 8],
+  pub vram: [u8; 1024 * 8],
 }
 
 impl PPU {
-
+  pub fn new() -> Self {
+    PPU {
+      vram: [0; 1024 * 8]
+    }
+  }
 }

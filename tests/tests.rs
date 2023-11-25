@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
-  use tomboy_emu::{cpu::CPU, mmu::MMU, definitions::WRAM_START};
+  use tomboy_emu::{cpu::CPU, bus::BUS, definitions::WRAM_START};
   
   fn init_cpu() -> CPU {
-    let mem = MMU::new(vec![]);
+    let mem = BUS::new(vec![]);
     CPU::new(mem)
   }
 

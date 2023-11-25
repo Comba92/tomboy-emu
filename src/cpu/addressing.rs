@@ -5,7 +5,7 @@ pub struct Opcode {
   pub code: u8,
   pub name: &'static str,
   pub bytes: u8,
-  pub cycles: u8,
+  pub cycles: usize,
   pub immediate: bool,
   pub operands: Vec<Operand>,
 }
