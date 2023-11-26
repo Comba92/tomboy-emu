@@ -1,5 +1,6 @@
 use crate::{definitions::*, ppu::PPU, timer::Timer};
 use bitflags::bitflags;
+use log::info;
 
 bitflags! {
   #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,6 +61,7 @@ impl BUS {
     let tima_overflow = self.timer.tick(cycles);
     if tima_overflow {
       self.if_reg.insert(InterruptRegister::TIMER);
+      info!("[BUS] TIMA overflowed. Interrupt requested {:?}", self.if_reg);
     }
   }
 

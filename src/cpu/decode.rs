@@ -2,11 +2,15 @@ use super::{addressing::Opcode, CPU};
 
 impl CPU {
   pub fn decode(&mut self, opcode: &Opcode) {
+    if opcode.prefixed {
+      self.cb_decode(opcode);
+      return;
+    }
     let operands = &opcode.operands;
 
     match opcode.code {
       0x00 => (),
-      0x10 => panic!("STOP reached."), // STOP
+      0x10 => panic!("STOP reached"), // STOP
       0x76 => self.halt(),
 
       0x01 | 0x02 | 0x06 | 0x08 | 0x0A |

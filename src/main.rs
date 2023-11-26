@@ -31,6 +31,8 @@ fn draw_pixel(tile: &Vec<u8>) -> Vec<u8> {
 }
 
 fn main() {
+  //env_logger::init();
+
   let args: Vec<String> = env::args().collect();
 
   if args.len() <= 1 {
@@ -46,16 +48,9 @@ fn main() {
   let memory = BUS::new(rom);
   let mut cpu = CPU::new(memory);
 
-  let now = std::time::SystemTime::now();
   if args.len() > 2 {
-    let delay = args.get(2).unwrap().parse().unwrap();
-    eprintln!("Running...");
-    loop {
-      if now.elapsed().unwrap() > std::time::Duration::from_secs(delay) {
-        std::process::exit(0);
-      } 
-      cpu.step();
-    }
+    cpu.run();
+    std::process::exit(0);
   }
 
   let sdl_context = sdl2::init().unwrap();

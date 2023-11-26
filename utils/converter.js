@@ -15,7 +15,7 @@ const jumps = [
 function parse_operand(data) {
   let type = '';
 
-  if (data.name[0] == '$') { 
+  if (data.name[0] === '$') {
     let name = data.name.replace("$", '')
     type = `Interrupt(0x${name})`
   }
@@ -32,25 +32,23 @@ function parse_operand(data) {
   return `Operand {kind: ${type}, immediate: ${data.immediate}}`
 }
 
-function parse_obj(data) {
+function parse_obj(data, prefixed) {
   return Object.entries(data).map( ([key, value]) => {
     if (jumps.includes(key)) {
-      if (value.operands 
-        && value.operands[0]
-        && value.operands[0].name == "C")
+      if (value?.operands[0]?.name === "C")
         value.operands[0].name = "CY"
     }
 
-    let cycles = isNaN(value.cycles) ? 0 : value.cycles
+    let cycles = `(${value.cycles[0]}, ${value.cycles[1] ?? 0})`
     let operands = value.operands.map(e => parse_operand(e)).join(', ')
     let code = parseInt(key, 16)
 
-    return `\tOpcode {code: ${key}, name: "${value.mnemonic}", bytes: ${value.bytes}, cycles: ${cycles}, immediate: ${value.immediate}, operands: vec!(${operands})}`
+    return `\tOpcode {code: ${key}, prefixed: ${prefixed}, name: "${value.mnemonic}", bytes: ${value.bytes}, cycles: ${cycles}, immediate: ${value.immediate}, operands: vec!(${operands})}`
   }).join(', \n')
 }
 
-let unprefixed = parse_obj(jsonData.unprefixed)
-let cbprefixed = parse_obj(jsonData.cbprefixed)
+let unprefixed = parse_obj(jsonData.unprefixed, false)
+let cbprefixed = parse_obj(jsonData.cbprefixed, true)
 let header = `use super::addressing::*;
 use super::addressing::OperandType::*;
 use super::addressing::ConditionOperand::*;
@@ -58,5 +56,5 @@ use super::addressing::RegisterOperand::*;
 use super::addressing::LiteralOperand::*;\n\n`
 
 
-fs.writeFileSync('optable.txt', header + 'const opcodes: Vec<Opcode> = vec![\n' + unprefixed + ',\n\n' + cbprefixed + '\n];')
+fs.writeFileSync('optable.txt', 'const opcodes: Vec<Opcode> = vec![\n' + unprefixed + ',\n\n' + cbprefixed + '\n];')
 

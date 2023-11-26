@@ -1,3 +1,4 @@
+use log::info;
 use super::{CPU, addressing::{Operand, OperandType, RegisterOperand}, Flags};
 
 const REG_A_OPERAND: Operand = Operand { 
@@ -76,6 +77,8 @@ impl CPU {
     } else {
       self.set_to_destination(dst, data as u8);
     }
+
+    info!("[LD] IF Flag: {:?}, IE Flag: {:?}", self.get_if(), self.get_ie());
   }
 
   pub fn ld_io_in_c_reg_to_a(&mut self) {
@@ -476,9 +479,12 @@ impl CPU {
 
    // The effect of ei is delayed by one instruction. This means that ei followed immediately by di does not allow any interrupts between them. This interacts with the halt bug in an interesting way.
   pub fn di(&mut self) { self.ime = false; }
-  pub fn ei(&mut self) { self.ime_to_set = true; }
+  pub fn ei(&mut self) {
+    info!("[EI] IF Flag: {:?}, IE Flag: {:?}", self.get_if(), self.get_ie());
+    self.ime_to_set = true;
+  }
   pub fn reti(&mut self) {
-    self.ei();
+    self.ime = true;
     self.ret();
   }
 

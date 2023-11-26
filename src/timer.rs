@@ -1,3 +1,5 @@
+use log::info;
+
 use crate::definitions::DIV_INIT;
 
 pub struct Timer {
@@ -5,7 +7,7 @@ pub struct Timer {
   pub tima: u8,
   pub tma: u8,
   pub tac: u8,
-  pub cycles: usize
+  pub cycles: usize,
 }
 
 impl Timer {
@@ -16,20 +18,24 @@ impl Timer {
   }
 
   pub fn tick(&mut self, cycles: usize) -> bool {
-    self.div = self.div.wrapping_add(cycles as u16 * 4);
+    self.div = self.div.wrapping_add(cycles as u16);
 
     let mut overflowed: bool = false;
     
     if self.is_timer_enabled() {
-      self.cycles = self.cycles.wrapping_add(cycles * 4);
+      info!("[Timer] Increasing cycles");
+      self.cycles = self.cycles.wrapping_add(cycles);
 
       if self.cycles > self.get_frequency() {
+        info!("[Timer] Increasing registers");
+
         self.cycles = self.cycles
           .wrapping_sub(self.get_frequency());
         
         (self.tima, overflowed) = self.tima.overflowing_add(1);
 
         if overflowed {
+          info!("[Timer] TIMA overflowed.");
           self.tima = self.tma;
         }
       }
