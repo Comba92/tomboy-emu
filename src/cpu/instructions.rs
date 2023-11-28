@@ -425,6 +425,7 @@ impl CPU {
     self.pc = addr;
   }
 
+
   pub fn jpc(&mut self, cond: &Operand, dst: &Operand) {
     let cond = self.get_from_source(cond);
     if cond != 0 {

@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crate::{definitions::*, bus::{BUS, InterruptRegister}};
-use log::{info, trace};
+use log::{debug, info, trace};
 use optable::OPTABLE;
 use addressing::Opcode;
 
@@ -164,9 +164,9 @@ impl CPU {
   }
 
   pub fn interrupt_call(&mut self, int: InterruptRegister) {
-    self.bus.tick(2);
+    self.bus.tick(2 * 4);
     self.stack_push(self.pc);
-    self.bus.tick(2);
+    self.bus.tick(2 * 4);
 
     info!("[InterruptCall] PC pushed. Redirecting to interrupt vector...");
     match int {
@@ -179,33 +179,32 @@ impl CPU {
     }
 
     info!("[InterruptCall] Interrupt redirected correctly to {:x}.", self.pc);
-    self.bus.tick(1);
+    self.bus.tick(1 * 4);
   }
 
   #[deprecated]
   pub fn load_and_run(&mut self, program: Vec<u8>) {
-    self.load_to_ram(program);
+    self.bus.ram[0 .. program.len()].copy_from_slice(&program);
+    self.pc = WRAM_START;
     self.run();
   }
 
-  #[deprecated]
-  pub fn load_to_ram(&mut self, program: Vec<u8>) {
-    self.bus.ram[0 .. program.len()].copy_from_slice(&program);
-    self.pc = WRAM_START;
+  pub fn is_blargg_test_finished(&self) -> bool {
+    // debug termination check
+    let code = self.mem_read(self.pc);
+    if code == 0xe0 && self.mem_read(self.pc + 1) == 0x26
+        && self.mem_read(self.pc + 2) == 0x18
+        && self.mem_read(self.pc + 3) == 0xfe
+    { true } else { false }
   }
-
+  
   pub fn run(&mut self) {
     loop {
-      // debug termination check
-      let code = self.bus.mem_read(self.pc);
-      if code == 0xe0 && self.bus.mem_read(self.pc + 1) == 0x26
-        && self.bus.mem_read(self.pc + 2) == 0x18
-        && self.bus.mem_read(self.pc + 3) == 0xfe
-      {
+      if self.is_blargg_test_finished() {
         break;
       }
 
-      self.step();
+      let _ = self.step();
 
       self.interrupts_handle();
 
@@ -217,18 +216,26 @@ impl CPU {
     }
   } 
 
-  pub fn step(&mut self) {
+  pub fn step(&mut self) -> Result<(), &'static str>{
+    self.interrupts_handle();
+
+    if self.ime_to_set {
+      info!("[EI] IME Enabled - IF Flag: {:?}, IE Flag: {:?}", self.get_if(), self.get_ie());
+      self.ime_to_set = false;
+      self.ime = true;
+    }
+    
     self.log_debug();
     if self.halted {
       self.bus.tick(4);
-      return;
+      return Ok(());
     }
 
-    let code = self.bus.mem_read(self.pc);
+    let code = self.mem_read(self.pc);
     let opcode = if code == 0xCB {
       let code = 0xCB00 | self.bus
-          .mem_read(self.pc.wrapping_add(1))
-          as u16;
+        .mem_read(self.pc.wrapping_add(1))
+        as u16;
       OPTABLE.get(&code).unwrap()
     } else {
       OPTABLE.get(&(code as u16)).unwrap()
@@ -236,6 +243,7 @@ impl CPU {
 
     self.pc = self.pc.wrapping_add(opcode.bytes as u16);
     let pc_before_jpc = self.pc;
+    
     self.decode(opcode);
 
     if opcode.cycles.1 != 0 && self.pc == pc_before_jpc {
@@ -248,6 +256,8 @@ impl CPU {
       eprintln!("{}", self.mem_read(0xff01) as char);
       self.mem_write(0xff02, 0);
     }
+    
+    Ok(())
   }
 
   #[deprecated]
@@ -260,9 +270,7 @@ impl CPU {
   }
 
   pub fn log_debug(&self) {
-    let op = OPTABLE.get(&(self.mem_read(self.pc) as u16)).unwrap().name;
-
-    println!(
+    debug!(
       "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: 00:{:04X} ({:02X} {:02X} {:02X} {:02X})",
       self.a, self.f.bits(), self.b, self.c, self.d, self.e, self.h, self.l, self.sp, self.pc,
       self.mem_read(self.pc), self.mem_read(self.pc+1), self.mem_read(self.pc+2), self.mem_read(self.pc+3)
