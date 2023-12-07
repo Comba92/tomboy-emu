@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{definitions::*, bus::{BUS, InterruptRegister}};
 use log::{debug, info, trace};
 use optable::OPTABLE;
@@ -20,7 +22,7 @@ bitflags::bitflags! {
 }
 
 impl Flags {
-  pub fn new(value: u8) -> Self { Self::from_bits_truncate(value) }
+  pub fn new(value: u8) -> Self { Self::from_bits_retain(value) }
 }
 
 
@@ -40,12 +42,12 @@ pub struct CPU {
 
   pub sp: u16,
   pub pc: u16,
-  pub bus: BUS,
+  pub memory: Rc<RefCell<BUS>>,
 }
 
 // Boilerplate, constructor, getter, setter
 impl CPU {
-  pub fn new(memory: BUS) -> Self {
+  pub fn new(memory: Rc<RefCell<BUS>>) -> Self {
     CPU {
       a: A_INIT,
       f: Flags::new(F_INIT),
@@ -60,7 +62,7 @@ impl CPU {
       ime: false,
       ime_to_set: false,
       halted: false,
-      bus: memory,
+      memory,
     }
   }
 
@@ -77,10 +79,17 @@ impl CPU {
   pub fn set_hl(&mut self, data: u16) { let [high, low] = data.to_be_bytes(); self.h = high; self.l = low; }
 
   pub fn mem_read(&self, addr: u16) -> u8 {
-    self.bus.mem_read(addr)
+    self.memory.borrow()
+    .mem_read(addr)
   }
   pub fn mem_write(&mut self, addr: u16, data: u8) {
-    self.bus.mem_write(addr, data);
+    self.memory.borrow_mut()
+    .mem_write(addr, data);
+  }
+
+  pub fn tick(&mut self, cycles: usize) {
+    self.memory.borrow_mut()
+    .tick(cycles);
   }
   
   pub fn mem_read_16(&self, addr: u16) -> u16 {
@@ -129,7 +138,7 @@ impl CPU {
 
     if if_reg.bits() & ie_reg.bits() == 0 {
       self.halted = true;
-      self.bus.tick(4);
+      self.tick(4);
     }
   }
 
@@ -164,9 +173,9 @@ impl CPU {
   }
 
   pub fn interrupt_call(&mut self, int: InterruptRegister) {
-    self.bus.tick(2 * 4);
+    self.tick(2 * 4);
     self.stack_push(self.pc);
-    self.bus.tick(2 * 4);
+    self.tick(2 * 4);
 
     info!("[InterruptCall] PC pushed. Redirecting to interrupt vector...");
     match int {
@@ -179,14 +188,7 @@ impl CPU {
     }
 
     info!("[InterruptCall] Interrupt redirected correctly to {:x}.", self.pc);
-    self.bus.tick(1 * 4);
-  }
-
-  #[deprecated]
-  pub fn load_and_run(&mut self, program: Vec<u8>) {
-    self.bus.ram[0 .. program.len()].copy_from_slice(&program);
-    self.pc = WRAM_START;
-    self.run();
+    self.tick(1 * 4);
   }
 
   pub fn is_blargg_test_finished(&self) -> bool {
@@ -227,13 +229,13 @@ impl CPU {
     
     self.log_debug();
     if self.halted {
-      self.bus.tick(4);
+      self.tick(4);
       return Ok(());
     }
 
     let code = self.mem_read(self.pc);
     let opcode = if code == 0xCB {
-      let code = 0xCB00 | self.bus
+      let code = 0xCB00 | self
         .mem_read(self.pc.wrapping_add(1))
         as u16;
       OPTABLE.get(&code).unwrap()
@@ -247,9 +249,9 @@ impl CPU {
     self.decode(opcode);
 
     if opcode.cycles.1 != 0 && self.pc == pc_before_jpc {
-      self.bus.tick(opcode.cycles.1);
+      self.tick(opcode.cycles.1);
     } else {
-      self.bus.tick(opcode.cycles.0);
+      self.tick(opcode.cycles.0);
     }
 
     if self.mem_read(0xff02) == 0x81 {

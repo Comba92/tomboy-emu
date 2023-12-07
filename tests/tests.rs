@@ -1,3 +1,4 @@
+#[deprecated]
 #[cfg(test)]
 mod tests {
   use tomboy_emu::{cpu::CPU, bus::BUS, definitions::WRAM_START};
@@ -6,6 +7,7 @@ mod tests {
     let mem = BUS::new(vec![]);
     CPU::new(mem)
   }
+
 
   #[test]
   fn load_immediate_to_a() {

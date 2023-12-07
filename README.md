@@ -5,6 +5,7 @@
 - **Cycle Accurate Docs**: https://raw.githubusercontent.com/rockytriton/LLD_gbemu/main/docs/The%20Cycle-Accurate%20Game%20Boy%20Docs.pdf
 - **Gekko Technical Reference**: https://gekkio.fi/files/gb-docs/gbctr.pdf
 - **Awesome GBDev** - https://github.com/gbdev/awesome-gbdev
+
 https://github.com/Hacktix/GBEDG/tree/master
 https://gist.github.com/SonoSooS/c0055300670d678b5ae8433e20bea595
 

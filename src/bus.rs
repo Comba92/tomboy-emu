@@ -1,6 +1,6 @@
-use crate::{definitions::*, ppu::PPU, timer::Timer};
+use crate::{definitions::*, timer::Timer};
 use bitflags::bitflags;
-use log::info;
+use log::{info, warn};
 
 bitflags! {
   #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,37 +20,37 @@ bitflags! {
 }
 
 impl InterruptRegister {
-  pub fn new(value: u8) -> Self { Self::from_bits_truncate(value) }
+  pub fn new(value: u8) -> Self { Self::from_bits_retain(value) }
 }
 impl SerialControl {
-  pub fn new(value: u8) -> Self { Self::from_bits_truncate(value) }
+  pub fn new(value: u8) -> Self { Self::from_bits_retain(value) }
 }
 
 pub struct BUS {
   rom: Vec<u8>,
-  pub ram: [u8; 1024 * 8],
+  pub vram: [u8; 1024 * 8],
+  pub wram: [u8; 1024 * 8],
   hram: [u8; 128],
   ie_reg: InterruptRegister,
   if_reg: InterruptRegister,
 
-  ppu: PPU,
   timer: Timer,
+
   io_regs: [u8; 128],
   serial_transfer: [u8; 2],
 }
 
 impl BUS {
-  pub fn new(mut rom: Vec<u8>) -> Self {
-    rom.resize(0x8000, 0);
+  pub fn new(rom: Vec<u8>) -> Self {
 
     BUS {
-      ram: [0; 1024 * 8],
+      vram: [0; 1024 * 8],
+      wram: [0; 1024 * 8],
       hram: [0; 128],
       rom,
       ie_reg: InterruptRegister::new(0),
       if_reg: InterruptRegister::new(0),
 
-      ppu: PPU::new(),
       timer: Timer::new(),
       io_regs: [0; 128],
       serial_transfer: [0; 2],
@@ -68,15 +68,15 @@ impl BUS {
   pub fn mem_read(&self, addr: u16) -> u8 {
     match addr {
       // required by blargg tests
-      0xff44 => 0x90,
+      // 0xff44 => 0x90,
 
       ROM_START ..= ROM_END => self.rom[addr as usize],
       VRAM_START ..= VRAM_END => {
-        info!("[VRAM READ]");
-        self.ppu.vram[(addr - VRAM_START) as usize]
+        warn!("[VRAM READ]");
+        self.vram[(addr - VRAM_START) as usize]
       }
       EXT_RAM_START ..= EXT_RAM_END => { eprintln!("EXT RAM address range not implemented."); 0 },
-      WRAM_START ..= WRAM_END => self.ram[(addr - WRAM_START) as usize],
+      WRAM_START ..= WRAM_END => self.wram[(addr - WRAM_START) as usize],
 
       0xff04 => self.timer.div.to_be_bytes()[0],
       0xff05 => self.timer.tima,
@@ -98,11 +98,11 @@ impl BUS {
     match addr {
       ROM_START ..= ROM_END => panic!("Trying to write ROM memory at {addr:#04x}."),
       VRAM_START ..= VRAM_END => {
-        self.ppu.vram[(addr - VRAM_START) as usize] = data;
-        info!("[VRAM WRITE]");
+        self.vram[(addr - VRAM_START) as usize] = data;
+        warn!("[VRAM WRITE]");
       }
       EXT_RAM_START ..= EXT_RAM_END => eprintln!("EXT RAM address range not implemented."),
-      WRAM_START ..= WRAM_END => self.ram[(addr - WRAM_START) as usize] = data,
+      WRAM_START ..= WRAM_END => self.wram[(addr - WRAM_START) as usize] = data,
 
       0xff04 => self.timer.div = 0,
       0xff05 => self.timer.tima = data,
@@ -119,6 +119,7 @@ impl BUS {
     };
   }
 
+  #[allow(unused)]
   fn io_registers_read(&mut self, addr: u16) -> u8 {
     match addr {
       0xff00 => todo!("joypad input"),

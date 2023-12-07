@@ -4,8 +4,7 @@ use std::time::Duration;
 use sdl2;
 use sdl2::pixels::Color;
 
-use tomboy_emu::bus::BUS;
-use tomboy_emu::cpu::CPU;
+use tomboy_emu::Emulator;
 use tomboy_emu::definitions::VRAM_START;
 
 
@@ -59,7 +58,7 @@ impl SDL2Context {
 }
 
 fn main() {
-  env_logger::init();
+  env_logger::builder().filter_level(log::LevelFilter::Warn).init();
 
   let args: Vec<String> = env::args().collect();
 
@@ -73,11 +72,11 @@ fn main() {
   let rom = fs::read(rom_path)
     .expect("Error reading the file.");
 
-  let memory = BUS::new(rom);
-  let mut cpu = CPU::new(memory);
+  let mut emu = Emulator::new(rom);
 
+  // for debugging without screen
   if args.len() > 2 {
-    cpu.run();
+    emu.run();
     std::process::exit(0);
   }
 
@@ -94,16 +93,11 @@ fn main() {
       }
     }
 
-    if let Err(str) = cpu.step() {
+    if let Err(str) = emu.step() {
       panic!("{str}");
     }
 
-    let mut vram = Vec::new();
-    for i in VRAM_START+100..VRAM_START+500 {
-      vram.push(cpu.mem_read(i));
-    }
-
-    // println!("{:?}", vram);
+    println!("{:?}", emu.memory.borrow().vram);
     
     ctx.canvas.present();
     std::thread::sleep(Duration::from_millis(1));

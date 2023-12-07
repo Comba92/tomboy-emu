@@ -1,7 +1,6 @@
 #[allow(dead_code)]
 #[derive(Debug)]
-pub struct Cartridge {
-  rom: Vec<u8>,
+pub struct CartridgeData {
   title: String,
   publisher: u16,
   cgb_flag: u8,
@@ -23,8 +22,8 @@ fn extract_string(data: &Vec<u8>, start: usize, end: usize) -> String {
     .unwrap().replace("\0", "")
 }
 
-impl Cartridge {
-  pub fn new(data: Vec<u8>) -> Self {
+impl CartridgeData {
+  pub fn new(data: &Vec<u8>) -> Self {
     if data.len() < 0x14f {
       panic!("Rom is too small, and doesn't contain a full header.");
     } 
@@ -48,8 +47,7 @@ impl Cartridge {
     }
     let checksum_pass = checksum == check;
 
-    Cartridge {
-      rom: data,
+    CartridgeData {
       title,
       publisher,
       cgb_flag,
