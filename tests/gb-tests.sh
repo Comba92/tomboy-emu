@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for NUM in $1 $2
+for NUM in $(seq $1 $2)
 do
   echo "Test $NUM"
   RUST_LOG=info cargo run -q "test_roms/$NUM.gb" off > "logs/$NUM-results.log" 2>"logs/$NUM-trace.log"

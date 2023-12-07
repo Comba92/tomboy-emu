@@ -58,7 +58,7 @@ impl SDL2Context {
 }
 
 fn main() {
-  env_logger::builder().filter_level(log::LevelFilter::Warn).init();
+  env_logger::builder().filter_level(log::LevelFilter::Off).init();
 
   let args: Vec<String> = env::args().collect();
 

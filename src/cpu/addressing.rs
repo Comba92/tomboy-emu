@@ -129,7 +129,7 @@ impl CPU {
           RegisterOperand::C => self.c = data as u8,
           RegisterOperand::D => self.d = data as u8,
           RegisterOperand::E => self.e = data as u8,
-          RegisterOperand::F => self.f = Flags::from_bits_retain(data as u8),
+          RegisterOperand::F => self.f = Flags::from_bits_truncate(data as u8),
           RegisterOperand::H => self.h = data as u8,
           RegisterOperand::L => self.l = data as u8,
           _ => panic!("Impossible to set 8bit literal value in 16bit register.")

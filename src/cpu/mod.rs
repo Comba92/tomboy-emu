@@ -22,7 +22,7 @@ bitflags::bitflags! {
 }
 
 impl Flags {
-  pub fn new(value: u8) -> Self { Self::from_bits_retain(value) }
+  pub fn new(value: u8) -> Self { Self::from_bits_truncate(value) }
 }
 
 
@@ -216,9 +216,13 @@ impl CPU {
         self.ime = true;
       }
     }
-  } 
+  }
 
   pub fn step(&mut self) -> Result<(), &'static str>{
+    if self.is_blargg_test_finished() {
+      return Err("Blargg test done");
+    }
+
     self.interrupts_handle();
 
     if self.ime_to_set {
@@ -272,7 +276,7 @@ impl CPU {
   }
 
   pub fn log_debug(&self) {
-    debug!(
+    trace!(
       "A: {:02X} F: {:02X} B: {:02X} C: {:02X} D: {:02X} E: {:02X} H: {:02X} L: {:02X} SP: {:04X} PC: 00:{:04X} ({:02X} {:02X} {:02X} {:02X})",
       self.a, self.f.bits(), self.b, self.c, self.d, self.e, self.h, self.l, self.sp, self.pc,
       self.mem_read(self.pc), self.mem_read(self.pc+1), self.mem_read(self.pc+2), self.mem_read(self.pc+3)

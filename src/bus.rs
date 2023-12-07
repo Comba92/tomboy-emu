@@ -20,10 +20,10 @@ bitflags! {
 }
 
 impl InterruptRegister {
-  pub fn new(value: u8) -> Self { Self::from_bits_retain(value) }
+  pub fn new(value: u8) -> Self { Self::from_bits_truncate(value) }
 }
 impl SerialControl {
-  pub fn new(value: u8) -> Self { Self::from_bits_retain(value) }
+  pub fn new(value: u8) -> Self { Self::from_bits_truncate(value) }
 }
 
 pub struct BUS {
@@ -68,11 +68,10 @@ impl BUS {
   pub fn mem_read(&self, addr: u16) -> u8 {
     match addr {
       // required by blargg tests
-      // 0xff44 => 0x90,
+      0xff44 => 0x90,
 
       ROM_START ..= ROM_END => self.rom[addr as usize],
       VRAM_START ..= VRAM_END => {
-        warn!("[VRAM READ]");
         self.vram[(addr - VRAM_START) as usize]
       }
       EXT_RAM_START ..= EXT_RAM_END => { eprintln!("EXT RAM address range not implemented."); 0 },
@@ -99,7 +98,6 @@ impl BUS {
       ROM_START ..= ROM_END => panic!("Trying to write ROM memory at {addr:#04x}."),
       VRAM_START ..= VRAM_END => {
         self.vram[(addr - VRAM_START) as usize] = data;
-        warn!("[VRAM WRITE]");
       }
       EXT_RAM_START ..= EXT_RAM_END => eprintln!("EXT RAM address range not implemented."),
       WRAM_START ..= WRAM_END => self.wram[(addr - WRAM_START) as usize] = data,

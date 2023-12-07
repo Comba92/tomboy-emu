@@ -29,10 +29,10 @@ bitflags::bitflags! {
 }
 
 impl LCDControl {
-  pub fn new(value: u8) -> Self { Self::from_bits_retain(value) }
+  pub fn new(value: u8) -> Self { Self::from_bits_truncate(value) }
 }
 impl LCDStatus {
-  pub fn new(value: u8) -> Self { Self::from_bits_retain(value) }
+  pub fn new(value: u8) -> Self { Self::from_bits_truncate(value) }
 }
 
 pub struct PPU {
