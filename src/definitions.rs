@@ -51,5 +51,11 @@ pub const DIV_INIT: u16 = 0xabcc;
 
 pub const LCD_WIDTH:  usize = 160;
 pub const LCD_HEIGHT: usize = 144;
+pub const VRAM_BLOCK_0: usize = 0x8000;
+pub const VRAM_BLOCK_1: usize = 0x8800;
+pub const VRAM_BLOCK_2: usize = 0x900;
+pub const VRAM_TILE_MAP_0: usize = 0x9800;
+pub const VRAM_TILE_MAP_1: usize = 0x9c00;
 
-pub const CLOCK_SPEED: f32 = 4.194304;
+
+pub const CLOCK_SPEED: usize = 4194304;

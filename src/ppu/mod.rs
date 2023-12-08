@@ -2,7 +2,7 @@ use std::{rc::Rc, cell::RefCell};
 
 use crate::bus::BUS;
 
-mod tiles;
+mod tile;
 
 bitflags::bitflags! {
   pub struct LCDControl: u8 {

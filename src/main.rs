@@ -1,22 +1,25 @@
 use std::env;
 use std::fs;
-use std::time::Duration;
 use sdl2;
 use sdl2::pixels::Color;
 
 use tomboy_emu::Emulator;
+use tomboy_emu::definitions::CLOCK_SPEED;
+use tomboy_emu::definitions::LCD_HEIGHT;
+use tomboy_emu::definitions::LCD_WIDTH;
+use tomboy_emu::definitions::VRAM_END;
 use tomboy_emu::definitions::VRAM_START;
 
 
-const palette: [Color; 4] = [Color::RED, Color::GRAY, Color::GREY, Color::WHITE];
+const palette: [Color; 4] = [Color::WHITE, Color::GRAY, Color::GREY, Color::BLACK];
 
-fn draw_pixel(tile: &Vec<u8>) -> Vec<u8> {
+fn tile_to_2bpp(tile: &[u8]) -> Vec<Vec<u8>> {
   let lsbit = tile.iter().step_by(2);
   let msbit = tile.iter().skip(1).step_by(2);
 
-  let tile: Vec<u8> = msbit
+  let tile = msbit
     .zip(lsbit)
-    .flat_map(|(high, low)| {
+    .map(|(high, low)| {
       let mut row = vec![];
       for i in 0..8 {
         let hb = (high >> (7-i)) & 1; 
@@ -25,9 +28,38 @@ fn draw_pixel(tile: &Vec<u8>) -> Vec<u8> {
       }
       row
     })
-    .collect();
+    .collect::<Vec<_>>();
 
   tile
+}
+
+fn dump_vram_tiles(emu: &Emulator, ctx: &mut SDL2Context) {
+  let mut curr_x = 0;
+  let mut curr_y = 0;
+  
+  let _ = &emu.memory.borrow()
+    .vram[..]
+    .chunks(16)
+    .map(tile_to_2bpp)
+    .enumerate()
+    .for_each(|(i, tile)| {
+      if curr_x >= 8 * 32 { curr_x = 0; curr_y += 8; }
+      draw_tile(tile, curr_x, curr_y, ctx);
+      curr_x += 8;
+    });
+}
+
+fn draw_tile(tile: Vec<Vec<u8>>, x: i32, y: i32, ctx: &mut SDL2Context) {
+  tile.iter().enumerate().for_each(|(off_y, row)| {
+    row.iter().enumerate().for_each(|(off_x, &pixel)| {
+      ctx.canvas.set_draw_color(palette[pixel as usize]);
+      ctx.canvas.fill_rect(sdl2::rect::Rect::new(
+        x + off_x as i32,
+        y + off_y as i32,
+        1, 1
+      )).unwrap(); 
+    })
+  })
 }
 
 struct SDL2Context {
@@ -39,7 +71,7 @@ impl SDL2Context {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     let window = video_subsystem
-        .window("Tomboy - GB Emulator", 32 * 10, 32 * 10)
+        .window("Tomboy - GB Emulator", LCD_WIDTH as u32 * 5, LCD_HEIGHT as u32 * 5)
         .position_centered()
         .build().unwrap();
 
@@ -47,7 +79,7 @@ impl SDL2Context {
         .accelerated()
         .target_texture()
         .build().unwrap();
-    canvas.set_scale(10., 10.).unwrap();
+    canvas.set_scale(5., 5.).unwrap();
     let event_pump = sdl_context.event_pump().unwrap();
 
     SDL2Context {
@@ -93,13 +125,14 @@ fn main() {
       }
     }
 
-    if let Err(str) = emu.step() {
-      panic!("{str}");
+    for _ in 0..CLOCK_SPEED / 4 {
+      if let Err(str) = emu.step() {
+        continue;
+      }
     }
+  
+    dump_vram_tiles(&emu, &mut ctx);
 
-    println!("{:?}", emu.memory.borrow().vram);
-    
     ctx.canvas.present();
-    std::thread::sleep(Duration::from_millis(1));
   }
 }

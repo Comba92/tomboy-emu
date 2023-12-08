@@ -202,18 +202,9 @@ impl CPU {
   
   pub fn run(&mut self) {
     loop {
-      if self.is_blargg_test_finished() {
+      let result = self.step();
+      if result.is_err() {
         break;
-      }
-
-      let _ = self.step();
-
-      self.interrupts_handle();
-
-      if self.ime_to_set {
-        info!("[EI] IME Enabled - IF Flag: {:?}, IE Flag: {:?}", self.get_if(), self.get_ie());
-        self.ime_to_set = false;
-        self.ime = true;
       }
     }
   }
@@ -259,7 +250,7 @@ impl CPU {
     }
 
     if self.mem_read(0xff02) == 0x81 {
-      eprintln!("{}", self.mem_read(0xff01) as char);
+      eprint!("{}", self.mem_read(0xff01) as char);
       self.mem_write(0xff02, 0);
     }
     
