@@ -17,7 +17,7 @@ impl Timer {
     }
   }
 
-  pub fn tick(&mut self, cycles: usize) -> bool {
+  pub fn step(&mut self, cycles: usize) -> bool {
     self.div = self.div.wrapping_add(cycles as u16);
 
     let mut overflowed: bool = false;

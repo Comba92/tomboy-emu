@@ -59,3 +59,4 @@ pub const VRAM_TILE_MAP_1: usize = 0x9c00;
 
 
 pub const CLOCK_SPEED: usize = 4194304;
+pub const CYCLES_PER_FRAME: usize = 70224;

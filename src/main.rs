@@ -5,10 +5,9 @@ use sdl2::pixels::Color;
 
 use tomboy_emu::Emulator;
 use tomboy_emu::definitions::CLOCK_SPEED;
+use tomboy_emu::definitions::CYCLES_PER_FRAME;
 use tomboy_emu::definitions::LCD_HEIGHT;
 use tomboy_emu::definitions::LCD_WIDTH;
-use tomboy_emu::definitions::VRAM_END;
-use tomboy_emu::definitions::VRAM_START;
 
 
 const palette: [Color; 4] = [Color::WHITE, Color::GRAY, Color::GREY, Color::BLACK];
@@ -77,6 +76,7 @@ impl SDL2Context {
 
     let mut canvas = window.into_canvas()
         .accelerated()
+        .present_vsync()
         .target_texture()
         .build().unwrap();
     canvas.set_scale(5., 5.).unwrap();
@@ -125,7 +125,7 @@ fn main() {
       }
     }
 
-    for _ in 0..CLOCK_SPEED / 4 {
+    for _ in 0..CYCLES_PER_FRAME  {
       if let Err(str) = emu.step() {
         continue;
       }

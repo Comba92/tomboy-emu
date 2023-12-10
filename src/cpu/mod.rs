@@ -25,7 +25,6 @@ impl Flags {
   pub fn new(value: u8) -> Self { Self::from_bits_truncate(value) }
 }
 
-
 pub struct CPU {
   pub a: u8,
   pub f: Flags,
@@ -155,7 +154,7 @@ impl CPU {
     // when the bitwise AND of IE and IF is non-zero.
     self.halted = false;
 
-    // here the halt bug happens
+    // TODO: here the halt bug happens
     if !self.ime { return; }
 
     info!("[InterruptsHandler] Checking for interrupts...");
