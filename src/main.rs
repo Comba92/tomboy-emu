@@ -4,13 +4,12 @@ use sdl2;
 use sdl2::pixels::Color;
 
 use tomboy_emu::Emulator;
-use tomboy_emu::definitions::CLOCK_SPEED;
 use tomboy_emu::definitions::CYCLES_PER_FRAME;
 use tomboy_emu::definitions::LCD_HEIGHT;
 use tomboy_emu::definitions::LCD_WIDTH;
 
 
-const palette: [Color; 4] = [Color::WHITE, Color::GRAY, Color::GREY, Color::BLACK];
+const PALETTE: [Color; 4] = [Color::WHITE, Color::GRAY, Color::GREY, Color::BLACK];
 
 fn tile_to_2bpp(tile: &[u8]) -> Vec<Vec<u8>> {
   let lsbit = tile.iter().step_by(2);
@@ -41,7 +40,7 @@ fn dump_vram_tiles(emu: &Emulator, ctx: &mut SDL2Context) {
     .chunks(16)
     .map(tile_to_2bpp)
     .enumerate()
-    .for_each(|(i, tile)| {
+    .for_each(|(_, tile)| {
       if curr_x >= 8 * 32 { curr_x = 0; curr_y += 8; }
       draw_tile(tile, curr_x, curr_y, ctx);
       curr_x += 8;
@@ -51,7 +50,7 @@ fn dump_vram_tiles(emu: &Emulator, ctx: &mut SDL2Context) {
 fn draw_tile(tile: Vec<Vec<u8>>, x: i32, y: i32, ctx: &mut SDL2Context) {
   tile.iter().enumerate().for_each(|(off_y, row)| {
     row.iter().enumerate().for_each(|(off_x, &pixel)| {
-      ctx.canvas.set_draw_color(palette[pixel as usize]);
+      ctx.canvas.set_draw_color(PALETTE[pixel as usize]);
       ctx.canvas.fill_rect(sdl2::rect::Rect::new(
         x + off_x as i32,
         y + off_y as i32,
@@ -126,11 +125,11 @@ fn main() {
     }
 
     for _ in 0..CYCLES_PER_FRAME  {
-      if let Err(str) = emu.step() {
+      if let Err(_) = emu.step() {
         continue;
       }
     }
-  
+
     dump_vram_tiles(&emu, &mut ctx);
 
     ctx.canvas.present();

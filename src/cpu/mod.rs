@@ -237,6 +237,8 @@ impl CPU {
       OPTABLE.get(&(code as u16)).unwrap()
     };
 
+    self.log_op(opcode);
+
     self.pc = self.pc.wrapping_add(opcode.bytes as u16);
     let pc_before_jpc = self.pc;
     
@@ -276,6 +278,6 @@ impl CPU {
   pub fn log_op(&self, opcode: &Opcode) {
     let second = self.mem_read(self.pc.wrapping_add(1)); 
     let third =  self.mem_read(self.pc.wrapping_add(2));
-    trace!("[Running] {:#06x}: {},\t({:#04x}, {:#04x}, {:#04x})", self.pc, opcode.name, opcode.code, second, third);
+    debug!("[Running] {:#06x}: {},\t({:#04x}, {:#04x}, {:#04x})", self.pc, opcode.name, opcode.code, second, third);
   }
 }

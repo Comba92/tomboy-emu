@@ -3,7 +3,7 @@ use bitflags::bitflags;
 use log::{info, warn};
 
 mod timer;
-mod lcd;
+pub mod lcd;
 mod dma;
 
 use timer::Timer;
@@ -35,15 +35,15 @@ impl SerialControl {
 }
 
 pub struct BUS {
-  rom: Vec<u8>,
+  pub rom: Vec<u8>,
   pub vram: [u8; 1024 * 8],
   pub wram: [u8; 1024 * 8],
   pub oam: [u8; 160],
   pub hram: [u8; 128],
 
-  timer: Timer,
-  lcd: LCD,
-  dma: DMA,
+  pub timer: Timer,
+  pub lcd: LCD,
+  pub dma: DMA,
   ie_reg: InterruptRegister,
   if_reg: InterruptRegister,
 
@@ -55,7 +55,8 @@ pub struct BUS {
 }
 
 impl BUS {
-  pub fn new(rom: Vec<u8>) -> Self {
+  pub fn new(mut rom: Vec<u8>) -> Self {
+    rom.resize(ROM_END as usize + 1,0);
 
     BUS {
       rom,
@@ -97,6 +98,8 @@ impl BUS {
 
       self.dma.bytes += to_transfer;
     }
+
+    self.lcd.ly = self.lcd.ly.wrapping_add(1);
   }
 
   pub fn mem_read(&self, addr: u16) -> u8 {
@@ -138,7 +141,7 @@ impl BUS {
 
   pub fn mem_write(&mut self, addr: u16, data: u8) {
     match addr {
-      0x0000 ..= 0x7fff => panic!("Trying to write ROM memory at {addr:#04x}."),
+      0x0000 ..= 0x7fff => eprintln!("Trying to write ROM memory at {addr:#04x}."),
       0x8000 ..= 0x9fff => self.vram[(addr - 0x8000) as usize] = data,
       0xa000 ..= 0xbfff => eprintln!("EXT RAM address range not implemented."),
       0xc000 ..= 0xdfff => self.wram[(addr - 0xc000) as usize] = data,

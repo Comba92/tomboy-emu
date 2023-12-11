@@ -1,6 +1,5 @@
 use std::{cell::RefCell, rc::Rc};
 
-use cartrdige::CartridgeData;
 use cpu::CPU;
 use bus::BUS;
 use ppu::PPU;
@@ -37,6 +36,9 @@ impl Emulator {
   }
 
   pub fn step(&mut self) -> Result<(), &str> {
-    self.cpu.step()
+    let res = self.cpu.step();
+    for _ in 0..4 { self.ppu.step() }
+
+    res
   }
 }

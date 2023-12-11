@@ -9,6 +9,9 @@
 https://github.com/Hacktix/GBEDG/tree/master
 https://gist.github.com/SonoSooS/c0055300670d678b5ae8433e20bea595
 
+https://hacktix.github.io/GBEDG/
+https://blog.tigris.fr/2019/09/15/writing-an-emulator-the-first-pixel/
+
 - **Optable** - https://gbdev.io/gb-opcodes/optables/
 - **Better Optable** - https://meganesu.github.io/generate-gb-opcodes/
 - **Opcodes Reference** - https://rgbds.gbdev.io/docs/v0.6.1/gbz80.7

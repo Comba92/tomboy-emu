@@ -1,7 +1,3 @@
-use crate::definitions::OAM_START;
-
-use super::BUS;
-
 const DMA_TRANSFER_SIZE: usize = 160;
 const DMA_START_DELAY: usize = 4;
 
@@ -16,8 +12,8 @@ impl DMA {
     DMA { active: false, source: 0, bytes: 0 }
   }
 
-  pub fn write(&mut self, data: u8) {
-    self.source = u16::from_be_bytes([data, 0x00]);
+  pub fn write(&mut self, src: u8) {
+    self.source = u16::from_be_bytes([src, 0x00]);
     self.bytes = 0;
     self.active = true;
   }
